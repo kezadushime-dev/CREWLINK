@@ -639,7 +639,7 @@ window.addEventListener("beforeunload", () => {
 });
 
 socket.on("connect", () => {
-  connectionStatus.textContent = "Connected to local server";
+  connectionStatus.textContent = "Connected to CrewLink";
   connectionStatus.classList.add("connected");
 });
 
