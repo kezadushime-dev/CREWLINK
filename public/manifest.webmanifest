@@ -1,0 +1,18 @@
+{
+  "name": "CrewLink",
+  "short_name": "CrewLink",
+  "description": "Live event crew communications.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#071426",
+  "theme_color": "#071426",
+  "icons": [
+    {
+      "src": "/assets/crewlink-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

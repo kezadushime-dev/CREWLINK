@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#071426" />
+    <meta name="application-name" content="CrewLink" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>CrewLink</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/crewlink-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/assets/crewlink-icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body data-theme="dark">
+    <main class="app-shell">
+      <section class="screen screen--welcome" id="welcomeScreen">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="eyebrow">EVENT CREW COMMS</p>
+          <h1>Crew<span>Link</span></h1>
+          <p class="intro">A simple communication room for the people making live events happen.</p>
+        </div>
+
+        <div class="action-stack">
+          <button class="primary-button" id="showCreate" type="button">Create an event <span>→</span></button>
+          <button class="secondary-button" id="showJoin" type="button">Join an event</button>
+        </div>
+        <p class="connection-status" id="connectionStatus"><i></i> Connecting to local server</p>
+      </section>
+
+      <section class="screen screen--form hidden" id="createScreen" aria-hidden="true">
+        <button class="back-button" data-back type="button">← Back</button>
+        <p class="eyebrow">NEW EVENT</p>
+        <h2>Start your crew room</h2>
+        <form id="createForm" class="form-card">
+          <label>Event name<input id="createEventName" type="text" maxlength="40" placeholder="Sunday service" autocomplete="off" required /></label>
+          <label>Your name<input id="createName" type="text" maxlength="40" placeholder="e.g. Alice" autocomplete="name" required /></label>
+          <label>Room ID<input id="createRoom" class="room-input" type="text" maxlength="12" placeholder="e.g. KIGALI01" autocomplete="off" required /></label>
+          <p class="field-hint">Share this room ID with your crew.</p>
+          <button class="primary-button" type="submit">Create room <span>→</span></button>
+        </form>
+      </section>
+
+      <section class="screen screen--form hidden" id="joinScreen" aria-hidden="true">
+        <button class="back-button" data-back type="button">← Back</button>
+        <p class="eyebrow">JOIN EVENT</p>
+        <h2>Enter the crew room</h2>
+        <form id="joinForm" class="form-card">
+          <label>Your name<input id="joinName" type="text" maxlength="40" placeholder="e.g. Camera 1" autocomplete="name" required /></label>
+          <label>Room ID<input id="joinRoom" class="room-input" type="text" maxlength="12" placeholder="e.g. KIGALI01" autocomplete="off" required /></label>
+          <button class="primary-button" type="submit">Join room <span>→</span></button>
+        </form>
+      </section>
+
+      <section class="screen screen--room hidden" id="roomScreen" aria-live="polite" aria-hidden="true">
+        <header class="room-header">
+          <div>
+            <p class="dashboard-kicker hidden" id="directorDashboardKicker">DIRECTOR DASHBOARD</p>
+            <p class="eyebrow" id="roomId">ROOM</p>
+            <h2 id="eventTitle">Your event</h2>
+          </div>
+          <button class="leave-button" id="leaveRoom" type="button">Leave</button>
+        </header>
+
+        <section class="speaker-panel" id="speakerPanel" data-room-content>
+          <div class="speaker-icon" aria-hidden="true">⌁</div>
+          <div>
+            <p id="speakerLabel">Channel clear</p>
+            <strong id="speakerName">Tap to talk</strong>
+          </div>
+        </section>
+
+        <section class="director-camera-status" id="directorCameraStatus" aria-live="polite" data-room-content>
+          <span class="camera-status-dot" aria-hidden="true"></span>
+          <div>
+            <p>DIRECTOR CAMERA</p>
+            <strong id="directorCameraLabel">Director is off camera</strong>
+          </div>
+        </section>
+
+        <section class="director-share-card hidden" id="directorSharePanel" data-room-content>
+          <div class="share-card-heading">
+            <div>
+              <p class="eyebrow">CREW ACCESS</p>
+              <h3>Invite your crew</h3>
+            </div>
+            <span class="share-lockup" aria-hidden="true">⌁</span>
+          </div>
+          <div class="share-details">
+            <div>
+              <span>ROOM ID</span>
+              <code id="shareRoomId">ROOM</code>
+            </div>
+            <div>
+              <span>CREW LINK</span>
+              <code id="shareLink">Start the server to share</code>
+            </div>
+          </div>
+          <button class="copy-invite-button" id="copyInvite" type="button">Copy event details</button>
+        </section>
+
+        <section class="crew-section" data-room-content>
+          <div class="section-heading"><h3>Crew online</h3><span id="crewCount">0</span></div>
+          <div class="crew-list" id="crewList"></div>
+        </section>
+
+        <section class="talk-section" data-room-content>
+          <button class="director-camera-toggle hidden" id="directorCameraToggle" type="button" aria-pressed="false">
+            <span class="camera-toggle-icon" aria-hidden="true">●</span>
+            <span id="directorCameraToggleLabel">Mark myself on camera</span>
+          </button>
+          <p class="talk-instruction" id="talkInstruction">Tap to talk to everyone</p>
+          <button class="talk-button" id="talkButton" type="button" disabled aria-label="Tap to start or stop talking">
+            <span class="talk-rings" aria-hidden="true"></span>
+            <span class="mic-icon" aria-hidden="true"></span>
+            <strong>TAP TO TALK</strong>
+            <span class="talk-state" id="talkState">READY</span>
+          </button>
+          <p class="audio-note" id="audioNote">Your microphone stays muted until you hold the button.</p>
+        </section>
+
+        <section class="chat-panel hidden" id="chatPanel" aria-labelledby="chatTitle">
+          <div class="chat-heading">
+            <div>
+              <p class="eyebrow">ROOM CHAT</p>
+              <h3 id="chatTitle">Talk to the crew</h3>
+            </div>
+            <span class="chat-online" id="chatOnline">0 online</span>
+          </div>
+          <div class="chat-messages" id="chatMessages" aria-live="polite" aria-relevant="additions"></div>
+          <form class="chat-compose" id="chatForm">
+            <label class="sr-only" for="chatInput">Message the crew</label>
+            <textarea id="chatInput" maxlength="400" rows="1" placeholder="Message the crew…" autocomplete="off"></textarea>
+            <button type="submit">Send</button>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav hidden" id="bottomNav" aria-label="Room navigation">
+      <button class="bottom-nav-button is-active" data-room-tab="home" type="button" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">⌂</span>
+        <span>Home</span>
+      </button>
+      <button class="bottom-nav-button" data-room-tab="chat" type="button">
+        <span class="nav-icon" aria-hidden="true">◌</span>
+        <span>Chat</span>
+        <b class="chat-badge hidden" id="chatBadge">0</b>
+      </button>
+      <button class="bottom-nav-button theme-button" id="themeToggle" type="button" aria-label="Switch color theme">
+        <span class="nav-icon" id="themeIcon" aria-hidden="true">☾</span>
+        <span id="themeLabel">Dark</span>
+      </button>
+    </nav>
+
+    <div class="toast hidden" id="toast" role="alert"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+      }
+    </script>
+  </body>
+</html>
