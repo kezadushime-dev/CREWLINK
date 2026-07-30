@@ -86,12 +86,44 @@
           </div>
         </section>
 
+        <section class="director-live-overview hidden" id="directorLiveOverview" data-room-content aria-labelledby="directorLiveOverviewTitle">
+          <div class="section-heading"><h3 id="directorLiveOverviewTitle">Live crew performance</h3><span id="performanceStatus">LIVE</span></div>
+          <div class="performance-summary">
+            <div class="performance-ring" id="performanceRing"><strong id="performanceValue">100%</strong><span>linked</span></div>
+            <div class="performance-metrics">
+              <div><span>CREW ONLINE</span><strong id="metricCrewOnline">0</strong></div>
+              <div><span>AUDIO LINKS</span><strong id="metricAudioLinks">0/0</strong></div>
+              <div><span>ON AIR</span><strong id="metricOnAir">CLEAR</strong></div>
+            </div>
+          </div>
+          <div class="performance-diagram" id="performanceDiagram" aria-label="Crew connection diagram"></div>
+        </section>
+
+        <section class="director-screen-share hidden" id="directorScreenShare" data-room-content aria-labelledby="directorScreenShareTitle">
+          <div class="screen-share-heading">
+            <div><p class="eyebrow">LIVE WINDOW</p><h3 id="directorScreenShareTitle">Share your screen</h3></div>
+            <span class="screen-share-status" id="directorScreenStatus">OFF</span>
+          </div>
+          <p>Choose a tab, app window, or screen. Crew phones will see it live.</p>
+          <button class="screen-share-button" id="toggleScreenShare" type="button">Start window capture</button>
+          <div class="screen-preview hidden" id="screenPreview"><video id="directorScreenVideo" autoplay muted playsinline></video></div>
+        </section>
+
         <section class="director-camera-status" id="directorCameraStatus" aria-live="polite" data-room-content>
           <span class="camera-status-dot" aria-hidden="true"></span>
           <div>
             <p>DIRECTOR CAMERA</p>
             <strong id="directorCameraLabel">Director is off camera</strong>
           </div>
+        </section>
+
+        <section class="crew-live-view hidden" id="crewLiveView" data-room-content aria-labelledby="crewLiveViewTitle">
+          <div class="screen-share-heading">
+            <div><p class="eyebrow">DIRECTOR LIVE VIEW</p><h3 id="crewLiveViewTitle">Shared window</h3></div>
+            <span class="screen-share-status is-live" id="crewScreenStatus">LIVE</span>
+          </div>
+          <p class="crew-screen-note" id="crewScreenNote">Waiting for the director’s shared window.</p>
+          <video class="crew-screen-video" id="crewScreenVideo" autoplay playsinline></video>
         </section>
 
         <section class="director-requests hidden" id="directorRequests" data-room-content aria-labelledby="directorRequestsTitle">

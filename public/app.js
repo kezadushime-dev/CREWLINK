@@ -39,7 +39,8 @@ const state = {
   relayConfigured: false,
   coverImage: "",
   crewRequests: [],
-  requestStatuses: {}
+  requestStatuses: {},
+  directorScreenSharing: false
 };
 
 const connectionStatus = document.querySelector("#connectionStatus");
@@ -48,6 +49,22 @@ const speakerPanel = document.querySelector("#speakerPanel");
 const speakerLabel = document.querySelector("#speakerLabel");
 const speakerName = document.querySelector("#speakerName");
 const eventCover = document.querySelector("#eventCover");
+const directorLiveOverview = document.querySelector("#directorLiveOverview");
+const performanceRing = document.querySelector("#performanceRing");
+const performanceValue = document.querySelector("#performanceValue");
+const metricCrewOnline = document.querySelector("#metricCrewOnline");
+const metricAudioLinks = document.querySelector("#metricAudioLinks");
+const metricOnAir = document.querySelector("#metricOnAir");
+const performanceDiagram = document.querySelector("#performanceDiagram");
+const directorScreenShare = document.querySelector("#directorScreenShare");
+const directorScreenStatus = document.querySelector("#directorScreenStatus");
+const toggleScreenShare = document.querySelector("#toggleScreenShare");
+const screenPreview = document.querySelector("#screenPreview");
+const directorScreenVideo = document.querySelector("#directorScreenVideo");
+const crewLiveView = document.querySelector("#crewLiveView");
+const crewScreenStatus = document.querySelector("#crewScreenStatus");
+const crewScreenNote = document.querySelector("#crewScreenNote");
+const crewScreenVideo = document.querySelector("#crewScreenVideo");
 const talkButton = document.querySelector("#talkButton");
 const talkInstruction = document.querySelector("#talkInstruction");
 const talkState = document.querySelector("#talkState");
@@ -83,8 +100,12 @@ const chatOnline = document.querySelector("#chatOnline");
 const chatBadge = document.querySelector("#chatBadge");
 const peerConnections = new Map();
 const remoteAudioElements = new Map();
+const screenSenders = new Map();
 const pendingCandidates = new Map();
 let localStream = null;
+let localScreenStream = null;
+let remoteScreenStream = null;
+let remoteScreenPeerId = "";
 let rtcConfiguration = DEFAULT_RTC_CONFIGURATION;
 let audioContext = null;
 let microphoneSource = null;
@@ -221,6 +242,72 @@ function sendCrewRequest(type) {
   state.requestStatuses[type] = { type, status: "pending" };
   renderCrewQuickRequests();
   socket.emit("crew-request", { type });
+}
+
+function renderDirectorPerformance() {
+  const isDirector = state.role === "Director";
+  directorLiveOverview.classList.toggle("hidden", !isDirector);
+  if (!isDirector) {
+    return;
+  }
+
+  const crew = state.users.filter((user) => user.role === "Crew");
+  const linkedCrew = crew.filter((user) => peerConnections.get(user.id)?.connectionState === "connected");
+  const linkPercentage = crew.length === 0 ? 100 : Math.round((linkedCrew.length / crew.length) * 100);
+
+  performanceRing.style.setProperty("--performance", `${linkPercentage}%`);
+  performanceValue.textContent = `${linkPercentage}%`;
+  metricCrewOnline.textContent = String(crew.length);
+  metricAudioLinks.textContent = `${linkedCrew.length}/${crew.length}`;
+  metricOnAir.textContent = state.speaker ? state.speaker.name : "CLEAR";
+  performanceDiagram.replaceChildren();
+
+  if (crew.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "performance-node";
+    empty.textContent = "Waiting for crew phones";
+    performanceDiagram.append(empty);
+    return;
+  }
+
+  crew.forEach((user) => {
+    const node = document.createElement("span");
+    const linked = peerConnections.get(user.id)?.connectionState === "connected";
+    node.className = `performance-node${linked ? " is-linked" : ""}${state.speaker?.id === user.id ? " is-speaking" : ""}`;
+    node.textContent = state.speaker?.id === user.id ? `${user.name} · TALKING` : user.name;
+    performanceDiagram.append(node);
+  });
+}
+
+function renderScreenShare() {
+  const isDirector = state.role === "Director";
+  const isCrew = state.role === "Crew";
+  const isSharing = Boolean(localScreenStream);
+  const hasRemoteScreen = Boolean(remoteScreenStream);
+
+  directorScreenShare.classList.toggle("hidden", !isDirector);
+  directorScreenStatus.textContent = isSharing ? "LIVE" : "OFF";
+  directorScreenStatus.classList.toggle("is-live", isSharing);
+  toggleScreenShare.textContent = isSharing ? "Stop window capture" : "Start window capture";
+  toggleScreenShare.classList.toggle("is-sharing", isSharing);
+  screenPreview.classList.toggle("hidden", !isSharing);
+  if (directorScreenVideo.srcObject !== localScreenStream) {
+    directorScreenVideo.srcObject = localScreenStream;
+  }
+
+  const showCrewView = isCrew && (state.directorScreenSharing || hasRemoteScreen);
+  crewLiveView.classList.toggle("hidden", !showCrewView);
+  crewLiveView.classList.toggle("has-video", hasRemoteScreen);
+  crewScreenStatus.textContent = state.directorScreenSharing ? "LIVE" : "OFF";
+  crewScreenStatus.classList.toggle("is-live", state.directorScreenSharing);
+  crewScreenNote.textContent = hasRemoteScreen
+    ? "The director is sharing a live window."
+    : state.directorScreenSharing
+      ? "Connecting to the director’s shared window…"
+      : "The director is not sharing a window.";
+  if (crewScreenVideo.srcObject !== remoteScreenStream) {
+    crewScreenVideo.srcObject = remoteScreenStream;
+  }
 }
 
 function setActiveTab(tab) {
@@ -409,6 +496,7 @@ function renderUsers() {
     return member;
   }));
   updateTalkButton();
+  renderDirectorPerformance();
 }
 
 function chatTime(timestamp) {
@@ -534,6 +622,8 @@ function renderRoleLayout() {
   renderEventCover();
   renderCrewQuickRequests();
   renderDirectorRequests();
+  renderDirectorPerformance();
+  renderScreenShare();
   renderBottomNav();
 }
 
@@ -612,6 +702,106 @@ function setCrewVolume() {
   });
 }
 
+async function syncScreenTrack(peerId, connection) {
+  const screenTrack = localScreenStream?.getVideoTracks()[0] || null;
+  const sender = screenSenders.get(peerId);
+
+  if (sender) {
+    await sender.replaceTrack(screenTrack);
+    return;
+  }
+
+  if (screenTrack && localScreenStream) {
+    screenSenders.set(peerId, connection.addTrack(screenTrack, localScreenStream));
+  }
+}
+
+async function renegotiateScreenShare() {
+  await Promise.all([...peerConnections.entries()].map(async ([peerId, connection]) => {
+    if (connection.signalingState === "closed") {
+      return;
+    }
+
+    await syncScreenTrack(peerId, connection);
+    await createOffer(peerId);
+  }));
+}
+
+function clearRemoteScreen(peerId = "") {
+  if (peerId && remoteScreenPeerId !== peerId) {
+    return;
+  }
+
+  remoteScreenPeerId = "";
+  remoteScreenStream = null;
+  renderScreenShare();
+}
+
+function setRemoteScreen(peerId, stream, track) {
+  remoteScreenPeerId = peerId;
+  remoteScreenStream = stream;
+  track.addEventListener("ended", () => clearRemoteScreen(peerId), { once: true });
+  renderScreenShare();
+  crewScreenVideo.play().catch(() => undefined);
+}
+
+async function startScreenShare() {
+  if (state.role !== "Director" || !state.roomId) {
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    showToast("Window capture is not supported in this browser.");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 24, max: 30 } },
+      audio: false
+    });
+    const track = stream.getVideoTracks()[0];
+    if (!track) {
+      stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+      showToast("No window was selected to share.");
+      return;
+    }
+
+    localScreenStream = stream;
+    track.addEventListener("ended", () => stopScreenShare(), { once: true });
+    renderScreenShare();
+    socket.emit("director-screen-status", { isSharing: true });
+    await renegotiateScreenShare();
+    showToast("Your window is now live for the crew.");
+  } catch (error) {
+    if (error?.name !== "NotAllowedError") {
+      showToast("Could not start window capture. Try again.");
+    }
+  }
+}
+
+async function stopScreenShare(announce = true, shouldRenegotiate = true) {
+  if (!localScreenStream) {
+    return;
+  }
+
+  const stream = localScreenStream;
+  localScreenStream = null;
+  stream.getTracks().forEach((track) => track.stop());
+  renderScreenShare();
+  if (announce && state.roomId) {
+    socket.emit("director-screen-status", { isSharing: false });
+  }
+
+  if (!shouldRenegotiate) {
+    return;
+  }
+
+  try {
+    await renegotiateScreenShare();
+  } catch (error) {}
+}
+
 function closePeerConnection(peerId) {
   pendingCandidates.delete(peerId);
   const connection = peerConnections.get(peerId);
@@ -622,6 +812,7 @@ function closePeerConnection(peerId) {
     connection.close();
     peerConnections.delete(peerId);
   }
+  screenSenders.delete(peerId);
 
   const audio = remoteAudioElements.get(peerId);
   if (audio) {
@@ -630,7 +821,9 @@ function closePeerConnection(peerId) {
     remoteAudioElements.delete(peerId);
   }
 
+  clearRemoteScreen(peerId);
   updateTalkButton();
+  renderDirectorPerformance();
 }
 
 function closeAllPeerConnections() {
@@ -649,6 +842,10 @@ function createPeerConnection(peerId) {
   localStream?.getTracks().forEach((track) => {
     connection.addTrack(track, localStream);
   });
+  const screenTrack = localScreenStream?.getVideoTracks()[0];
+  if (screenTrack && localScreenStream) {
+    screenSenders.set(peerId, connection.addTrack(screenTrack, localScreenStream));
+  }
 
   connection.onicecandidate = ({ candidate }) => {
     if (candidate) {
@@ -656,9 +853,14 @@ function createPeerConnection(peerId) {
     }
   };
 
-  connection.ontrack = ({ streams }) => {
+  connection.ontrack = ({ streams, track }) => {
     const stream = streams[0];
     if (!stream) {
+      return;
+    }
+
+    if (track.kind === "video") {
+      setRemoteScreen(peerId, stream, track);
       return;
     }
 
@@ -686,6 +888,7 @@ function createPeerConnection(peerId) {
     }
 
     updateTalkButton();
+    renderDirectorPerformance();
   };
 
   return connection;
@@ -869,6 +1072,7 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   if (inviteDialog.open) {
     inviteDialog.close();
   }
+  stopScreenShare(false, false);
   stopTalking();
   socket.disconnect();
   closeAllPeerConnections();
@@ -884,6 +1088,8 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   state.coverImage = "";
   state.crewRequests = [];
   state.requestStatuses = {};
+  state.directorScreenSharing = false;
+  clearRemoteScreen();
   state.activeTab = "home";
   state.unreadMessages = 0;
   screens.room.classList.remove("showing-chat");
@@ -922,6 +1128,13 @@ directorCameraToggle.addEventListener("click", () => {
     isOnCamera: !state.directorCameraStatus
   });
 });
+toggleScreenShare.addEventListener("click", () => {
+  if (localScreenStream) {
+    stopScreenShare();
+  } else {
+    startScreenShare();
+  }
+});
 crewRequestButtons.forEach((button) => {
   button.addEventListener("click", () => sendCrewRequest(button.dataset.crewRequest));
 });
@@ -954,6 +1167,7 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 window.addEventListener("beforeunload", () => {
+  stopScreenShare(false, false);
   stopTalking();
   closeAllPeerConnections();
   releaseMicrophone();
@@ -968,6 +1182,7 @@ socket.on("disconnect", () => {
   connectionStatus.textContent = "Connection lost — reconnecting";
   connectionStatus.classList.remove("connected");
   stopTalking();
+  stopScreenShare(false, false);
   closeAllPeerConnections();
 });
 
@@ -976,6 +1191,7 @@ socket.on("room-joined", (data) => {
   state.eventName = data.eventName;
   state.role = data.role;
   state.directorCameraStatus = data.directorCameraStatus;
+  state.directorScreenSharing = Boolean(data.directorScreenSharing);
   state.coverImage = data.coverImage || "";
   state.crewRequests = [];
   state.requestStatuses = {};
@@ -1044,6 +1260,13 @@ socket.on("director-camera-status-updated", (data) => {
   state.directorCameraStatus = data.isOnCamera;
   state.directorName = data.directorName;
   renderDirectorCameraStatus();
+});
+socket.on("director-screen-status-updated", (data) => {
+  state.directorScreenSharing = Boolean(data.isSharing);
+  if (!state.directorScreenSharing) {
+    clearRemoteScreen();
+  }
+  renderScreenShare();
 });
 socket.on("speaker-updated", (speaker) => {
   state.speaker = speaker;

@@ -143,6 +143,15 @@ function leaveCurrentRoom(socket) {
       });
     }
 
+    if (socket.data.role === "Director" && room.directorScreenSharing) {
+      room.directorScreenSharing = false;
+      io.to(roomId).emit("director-screen-status-updated", {
+        directorId: socket.id,
+        directorName: socket.data.name,
+        isSharing: false
+      });
+    }
+
     room.users.delete(socket.id);
     if (room.activeSpeaker?.id === socket.id) {
       room.activeSpeaker = null;
@@ -179,6 +188,7 @@ function joinRoom(socket, roomId, name, role) {
     eventName: room.eventName,
     role,
     directorCameraStatus: room.directorCameraStatus,
+    directorScreenSharing: room.directorScreenSharing,
     coverImage: room.coverImage
   });
   if (role === "Director") {
@@ -215,6 +225,7 @@ io.on("connection", (socket) => {
       users: new Map(),
       activeSpeaker: null,
       directorCameraStatus: false,
+      directorScreenSharing: false,
       messages: [],
       crewRequests: new Map()
     });
@@ -301,6 +312,22 @@ io.on("connection", (socket) => {
       directorId: socket.id,
       directorName: socket.data.name,
       isOnCamera: room.directorCameraStatus
+    });
+  });
+
+  socket.on("director-screen-status", ({ isSharing } = {}) => {
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+
+    if (!room || socket.data.role !== "Director") {
+      return;
+    }
+
+    room.directorScreenSharing = Boolean(isSharing);
+    io.to(roomId).emit("director-screen-status-updated", {
+      directorId: socket.id,
+      directorName: socket.data.name,
+      isSharing: room.directorScreenSharing
     });
   });
 
