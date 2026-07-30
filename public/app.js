@@ -7,6 +7,12 @@ const DEFAULT_RTC_CONFIGURATION = {
   ]
 };
 
+const REQUEST_LABELS = {
+  battery: "Battery",
+  backup: "Backup",
+  camera: "Change camera view"
+};
+
 const screens = {
   welcome: document.querySelector("#welcomeScreen"),
   create: document.querySelector("#createScreen"),
@@ -30,7 +36,10 @@ const state = {
   messages: [],
   activeTab: "home",
   unreadMessages: 0,
-  relayConfigured: false
+  relayConfigured: false,
+  coverImage: "",
+  crewRequests: [],
+  requestStatuses: {}
 };
 
 const connectionStatus = document.querySelector("#connectionStatus");
@@ -38,6 +47,7 @@ const toast = document.querySelector("#toast");
 const speakerPanel = document.querySelector("#speakerPanel");
 const speakerLabel = document.querySelector("#speakerLabel");
 const speakerName = document.querySelector("#speakerName");
+const eventCover = document.querySelector("#eventCover");
 const talkButton = document.querySelector("#talkButton");
 const talkInstruction = document.querySelector("#talkInstruction");
 const talkState = document.querySelector("#talkState");
@@ -56,6 +66,11 @@ const closeInvite = document.querySelector("#closeInvite");
 const shareRoomId = document.querySelector("#shareRoomId");
 const shareLink = document.querySelector("#shareLink");
 const copyInvite = document.querySelector("#copyInvite");
+const crewQuickRequests = document.querySelector("#crewQuickRequests");
+const crewRequestButtons = document.querySelectorAll("[data-crew-request]");
+const directorRequests = document.querySelector("#directorRequests");
+const directorRequestList = document.querySelector("#directorRequestList");
+const directorRequestCount = document.querySelector("#directorRequestCount");
 const bottomNav = document.querySelector("#bottomNav");
 const roomTabButtons = document.querySelectorAll("[data-room-tab]");
 const themeToggle = document.querySelector("#themeToggle");
@@ -119,6 +134,93 @@ function renderBottomNav() {
   });
   chatBadge.textContent = state.unreadMessages;
   chatBadge.classList.toggle("hidden", state.unreadMessages === 0);
+}
+
+function renderEventCover() {
+  const hasCover = Boolean(state.coverImage);
+  eventCover.classList.toggle("hidden", !hasCover);
+  eventCover.style.backgroundImage = hasCover ? `url("${state.coverImage}")` : "";
+  appShell.classList.toggle("has-event-cover", hasCover);
+}
+
+function renderCrewQuickRequests() {
+  const isCrew = state.role === "Crew";
+  crewQuickRequests.classList.toggle("hidden", !isCrew);
+
+  crewRequestButtons.forEach((button) => {
+    const type = button.dataset.crewRequest;
+    const status = state.requestStatuses[type]?.status || "ask";
+    const statusLabel = status === "pending" ? "SENT" : status.toUpperCase();
+    button.disabled = status === "pending";
+    button.classList.remove("is-pending", "is-yes", "is-wait", "is-cancel");
+    if (status !== "ask") {
+      button.classList.add(`is-${status}`);
+    }
+    button.querySelector("b").textContent = statusLabel;
+  });
+}
+
+function renderDirectorRequests() {
+  const isDirector = state.role === "Director";
+  directorRequests.classList.toggle("hidden", !isDirector);
+  if (!isDirector) {
+    return;
+  }
+
+  const requests = Array.isArray(state.crewRequests) ? state.crewRequests : [];
+  directorRequestCount.textContent = requests.filter((request) => request.status === "pending").length;
+  directorRequestList.replaceChildren();
+
+  if (requests.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "director-request-empty";
+    empty.textContent = "No crew requests yet.";
+    directorRequestList.append(empty);
+    return;
+  }
+
+  requests.forEach((request) => {
+    const card = document.createElement("article");
+    card.className = "director-request-card";
+    const header = document.createElement("header");
+    const details = document.createElement("div");
+    const label = document.createElement("p");
+    label.textContent = REQUEST_LABELS[request.type]?.toUpperCase() || "CREW REQUEST";
+    const name = document.createElement("h4");
+    name.textContent = request.requesterName;
+    const status = document.createElement("span");
+    status.className = "director-request-status";
+    status.textContent = request.status === "pending" ? "NEEDS REPLY" : request.status.toUpperCase();
+    details.append(label, name);
+    header.append(details, status);
+    card.append(header);
+
+    if (request.status === "pending") {
+      const actions = document.createElement("div");
+      actions.className = "director-request-actions";
+      ["yes", "wait", "cancel"].forEach((response) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.requestId = request.id;
+        button.dataset.response = response;
+        button.textContent = response.toUpperCase();
+        actions.append(button);
+      });
+      card.append(actions);
+    }
+
+    directorRequestList.append(card);
+  });
+}
+
+function sendCrewRequest(type) {
+  if (state.role !== "Crew" || !state.roomId || !REQUEST_LABELS[type]) {
+    return;
+  }
+
+  state.requestStatuses[type] = { type, status: "pending" };
+  renderCrewQuickRequests();
+  socket.emit("crew-request", { type });
 }
 
 function setActiveTab(tab) {
@@ -429,6 +531,9 @@ function renderRoleLayout() {
   }
   shareRoomId.textContent = state.roomId || "ROOM";
   shareLink.textContent = crewJoinLink();
+  renderEventCover();
+  renderCrewQuickRequests();
+  renderDirectorRequests();
   renderBottomNav();
 }
 
@@ -690,16 +795,49 @@ function releaseMicrophone() {
   state.microphoneReady = false;
 }
 
+function readSelectedCoverImage() {
+  const file = document.querySelector("#createCoverImage").files[0];
+  if (!file) {
+    return Promise.resolve("");
+  }
+
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    showToast("Choose a JPG, PNG, or WebP cover image.");
+    return Promise.reject(new Error("Unsupported cover image type"));
+  }
+
+  if (file.size > 450 * 1024) {
+    showToast("Choose a cover image smaller than 450 KB.");
+    return Promise.reject(new Error("Cover image is too large"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read the cover image"));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function enterRoom(event, roomDetails) {
   event.preventDefault();
   state.name = roomDetails.name();
   state.roomId = normaliseRoomId(roomDetails.roomId());
   state.eventName = roomDetails.eventName?.() || "";
+  let coverImage = "";
+
+  try {
+    coverImage = roomDetails.coverImage ? await roomDetails.coverImage() : "";
+  } catch (error) {
+    return;
+  }
+
   await Promise.all([prepareMicrophone(), loadRtcConfiguration()]);
   socket.emit(roomDetails.event, {
     roomId: state.roomId,
     name: state.name,
-    eventName: state.eventName
+    eventName: state.eventName,
+    coverImage
   });
 }
 
@@ -715,6 +853,7 @@ document.querySelectorAll(".room-input").forEach((input) => {
 
 document.querySelector("#createForm").addEventListener("submit", (event) => enterRoom(event, {
   event: "create-event",
+  coverImage: readSelectedCoverImage,
   eventName: () => document.querySelector("#createEventName").value.trim(),
   name: () => document.querySelector("#createName").value.trim(),
   roomId: () => document.querySelector("#createRoom").value
@@ -742,6 +881,9 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   state.directorName = "Director";
   state.crewJoinUrl = "";
   state.messages = [];
+  state.coverImage = "";
+  state.crewRequests = [];
+  state.requestStatuses = {};
   state.activeTab = "home";
   state.unreadMessages = 0;
   screens.room.classList.remove("showing-chat");
@@ -778,6 +920,20 @@ document.querySelector("#chatForm").addEventListener("submit", (event) => {
 directorCameraToggle.addEventListener("click", () => {
   socket.emit("director-camera-status", {
     isOnCamera: !state.directorCameraStatus
+  });
+});
+crewRequestButtons.forEach((button) => {
+  button.addEventListener("click", () => sendCrewRequest(button.dataset.crewRequest));
+});
+directorRequestList.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-request-id]");
+  if (!button || state.role !== "Director") {
+    return;
+  }
+
+  socket.emit("respond-to-crew-request", {
+    requestId: button.dataset.requestId,
+    response: button.dataset.response
   });
 });
 openInvite.addEventListener("click", () => {
@@ -820,6 +976,9 @@ socket.on("room-joined", (data) => {
   state.eventName = data.eventName;
   state.role = data.role;
   state.directorCameraStatus = data.directorCameraStatus;
+  state.coverImage = data.coverImage || "";
+  state.crewRequests = [];
+  state.requestStatuses = {};
   state.activeTab = "home";
   state.unreadMessages = 0;
   audioLinkError = "";
@@ -845,6 +1004,25 @@ socket.on("users-updated", (users) => {
   state.users = users;
   renderUsers();
   renderDirectorCameraStatus();
+});
+socket.on("crew-requests-updated", (requests) => {
+  state.crewRequests = Array.isArray(requests) ? requests : [];
+  renderDirectorRequests();
+});
+socket.on("crew-request-statuses", (requests) => {
+  state.requestStatuses = (Array.isArray(requests) ? requests : []).reduce((statuses, request) => {
+    statuses[request.type] = request;
+    return statuses;
+  }, {});
+  renderCrewQuickRequests();
+});
+socket.on("crew-request-updated", (request) => {
+  if (!request?.type) {
+    return;
+  }
+
+  state.requestStatuses[request.type] = request;
+  renderCrewQuickRequests();
 });
 socket.on("chat-history", (messages) => {
   state.messages = Array.isArray(messages) ? messages : [];

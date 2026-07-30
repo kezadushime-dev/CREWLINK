@@ -18,6 +18,9 @@ const io = new Server(server, clientOrigins.length > 0 ? {
   }
 } : {});
 const rooms = new Map();
+const REQUEST_TYPES = new Set(["battery", "backup", "camera"]);
+const REQUEST_RESPONSES = new Set(["yes", "wait", "cancel"]);
+const MAX_COVER_IMAGE_LENGTH = 700000;
 
 app.disable("x-powered-by");
 app.use(express.static(path.join(__dirname, "public")));
@@ -83,6 +86,15 @@ function normaliseChatMessage(value) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, 400);
 }
 
+function normaliseCoverImage(value) {
+  const image = typeof value === "string" ? value.trim() : "";
+  if (image.length > MAX_COVER_IMAGE_LENGTH) {
+    return "";
+  }
+
+  return /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(image) ? image : "";
+}
+
 function usersIn(roomId) {
   const room = rooms.get(roomId);
   return room ? [...room.users.values()] : [];
@@ -90,6 +102,19 @@ function usersIn(roomId) {
 
 function broadcastUsers(roomId) {
   io.to(roomId).emit("users-updated", usersIn(roomId));
+}
+
+function requestsIn(room) {
+  return [...room.crewRequests.values()].sort((first, second) => second.updatedAt - first.updatedAt);
+}
+
+function broadcastDirectorRequests(room) {
+  const requests = requestsIn(room);
+  room.users.forEach((user, socketId) => {
+    if (user.role === "Director") {
+      io.to(socketId).emit("crew-requests-updated", requests);
+    }
+  });
 }
 
 function canSignalPeer(socket, targetId) {
@@ -153,8 +178,14 @@ function joinRoom(socket, roomId, name, role) {
     roomId,
     eventName: room.eventName,
     role,
-    directorCameraStatus: room.directorCameraStatus
+    directorCameraStatus: room.directorCameraStatus,
+    coverImage: room.coverImage
   });
+  if (role === "Director") {
+    socket.emit("crew-requests-updated", requestsIn(room));
+  } else {
+    socket.emit("crew-request-statuses", requestsIn(room).filter((request) => request.requesterId === socket.id));
+  }
   socket.emit("chat-history", room.messages);
   socket.emit("webrtc-peers", peerIds);
   broadcastUsers(roomId);
@@ -165,6 +196,7 @@ io.on("connection", (socket) => {
     const roomId = normaliseRoomId(payload.roomId);
     const name = normaliseName(payload.name);
     const eventName = normaliseName(payload.eventName) || "Untitled event";
+    const coverImage = normaliseCoverImage(payload.coverImage);
 
     if (!roomId || !name) {
       socket.emit("room-error", "Enter your name and a room ID.");
@@ -179,10 +211,12 @@ io.on("connection", (socket) => {
     leaveCurrentRoom(socket);
     rooms.set(roomId, {
       eventName,
+      coverImage,
       users: new Map(),
       activeSpeaker: null,
       directorCameraStatus: false,
-      messages: []
+      messages: [],
+      crewRequests: new Map()
     });
     joinRoom(socket, roomId, name, "Director");
   });
@@ -268,6 +302,45 @@ io.on("connection", (socket) => {
       directorName: socket.data.name,
       isOnCamera: room.directorCameraStatus
     });
+  });
+
+  socket.on("crew-request", ({ type } = {}) => {
+    const room = rooms.get(socket.data.roomId);
+    if (!room || socket.data.role !== "Crew" || !REQUEST_TYPES.has(type) || !room.users.has(socket.id)) {
+      return;
+    }
+
+    const now = Date.now();
+    const request = {
+      id: `${socket.id}:${type}`,
+      requesterId: socket.id,
+      requesterName: socket.data.name,
+      type,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now
+    };
+
+    room.crewRequests.set(request.id, request);
+    socket.emit("crew-request-updated", request);
+    broadcastDirectorRequests(room);
+  });
+
+  socket.on("respond-to-crew-request", ({ requestId, response } = {}) => {
+    const room = rooms.get(socket.data.roomId);
+    if (!room || socket.data.role !== "Director" || !REQUEST_RESPONSES.has(response)) {
+      return;
+    }
+
+    const request = room.crewRequests.get(requestId);
+    if (!request) {
+      return;
+    }
+
+    request.status = response;
+    request.updatedAt = Date.now();
+    io.to(request.requesterId).emit("crew-request-updated", request);
+    broadcastDirectorRequests(room);
   });
 
   socket.on("send-chat-message", ({ text } = {}) => {

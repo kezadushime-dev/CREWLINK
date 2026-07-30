@@ -42,6 +42,8 @@
           <label>Event name<input id="createEventName" type="text" maxlength="40" placeholder="Sunday service" autocomplete="off" required /></label>
           <label>Your name<input id="createName" type="text" maxlength="40" placeholder="e.g. Alice" autocomplete="name" required /></label>
           <label>Room ID<input id="createRoom" class="room-input" type="text" maxlength="12" placeholder="e.g. KIGALI01" autocomplete="off" required /></label>
+          <label class="cover-upload">Event cover photo <input id="createCoverImage" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+          <p class="field-hint">Optional: shown behind the event title. Use a JPG, PNG, or WebP under 450 KB.</p>
           <p class="field-hint">Share this room ID with your crew.</p>
           <button class="primary-button" type="submit">Create room <span>→</span></button>
         </form>
@@ -74,6 +76,8 @@
           </div>
         </header>
 
+        <div class="event-cover hidden" id="eventCover" aria-hidden="true"></div>
+
         <section class="speaker-panel" id="speakerPanel" data-room-content>
           <div class="speaker-icon" aria-hidden="true">⌁</div>
           <div>
@@ -87,6 +91,24 @@
           <div>
             <p>DIRECTOR CAMERA</p>
             <strong id="directorCameraLabel">Director is off camera</strong>
+          </div>
+        </section>
+
+        <section class="director-requests hidden" id="directorRequests" data-room-content aria-labelledby="directorRequestsTitle">
+          <div class="section-heading"><h3 id="directorRequestsTitle">Crew requests</h3><span id="directorRequestCount">0</span></div>
+          <div class="director-request-list" id="directorRequestList"></div>
+        </section>
+
+        <section class="crew-quick-requests hidden" id="crewQuickRequests" data-room-content aria-labelledby="crewQuickRequestsTitle">
+          <div>
+            <p class="eyebrow">QUICK REQUESTS</p>
+            <h3 id="crewQuickRequestsTitle">Ask your director</h3>
+          </div>
+          <p class="request-help">Tap an option to send it to the director.</p>
+          <div class="crew-request-grid">
+            <button class="crew-request-button" data-crew-request="battery" type="button"><span class="request-icon" aria-hidden="true">BAT</span><span>Battery</span><b>ASK</b></button>
+            <button class="crew-request-button" data-crew-request="backup" type="button"><span class="request-icon" aria-hidden="true">BKP</span><span>Backup</span><b>ASK</b></button>
+            <button class="crew-request-button" data-crew-request="camera" type="button"><span class="request-icon" aria-hidden="true">CAM</span><span>Change view</span><b>ASK</b></button>
           </div>
         </section>
 
