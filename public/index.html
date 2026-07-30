@@ -18,8 +18,54 @@
     <link rel="stylesheet" href="style.css?v=3" />
   </head>
   <body data-theme="dark">
-    <main class="app-shell">
+    <main class="app-shell is-welcome-view">
       <section class="screen screen--welcome" id="welcomeScreen">
+        <div class="landing-page">
+          <header class="landing-nav">
+            <a class="landing-logo" href="#home" aria-label="CrewLink home"><span class="landing-logo-mark" aria-hidden="true"></span>Crew<span>Link</span></a>
+            <nav aria-label="Landing navigation"><a href="#about">About</a><a href="#services">What we do</a><a href="#contact">Contact</a></nav>
+            <button class="landing-nav-action" data-landing-action="join" type="button">Join event</button>
+          </header>
+
+          <section class="landing-hero" id="home">
+            <div class="landing-hero-copy">
+              <p class="landing-kicker"><i></i> LIVE PRODUCTION COMMS</p>
+              <h1>Keep every crew member <span>in sync.</span></h1>
+              <p>One calm control room for directors and mobile crews—talk, share a live window, and answer the requests that keep a production moving.</p>
+              <div class="landing-actions"><button class="landing-primary" data-landing-action="create" type="button">Create an event <span>→</span></button><button class="landing-secondary" data-landing-action="join" type="button">Join an event</button></div>
+              <div class="landing-proof"><span>DIRECTOR DASHBOARD</span><span>CREW PHONE ACCESS</span><span>LIVE WINDOW SHARE</span></div>
+            </div>
+            <div class="landing-visual" aria-label="CrewLink live production preview">
+              <div class="landing-visual-top"><span class="landing-live-dot"></span> ON AIR <b>12 CREW ONLINE</b></div>
+              <div class="landing-visual-screen"><span>DIRECTOR WINDOW</span><strong>Live production, clear decisions.</strong></div>
+              <div class="landing-visual-cards"><span>BATTERY <b>YES</b></span><span>CAMERA VIEW <b>WAIT</b></span></div>
+            </div>
+          </section>
+
+          <section class="landing-section landing-about" id="about">
+            <p class="eyebrow">ABOUT CREWLINK</p>
+            <div><h2>Built for the people behind the live moment.</h2><p>CrewLink gives event teams a focused communication space without making every crew member carry a laptop. Directors stay in control; crews stay connected from their phones.</p></div>
+          </section>
+
+          <section class="landing-section" id="services">
+            <p class="eyebrow">WHAT WE DO</p>
+            <h2>Tools that move at show speed.</h2>
+            <div class="landing-service-grid">
+              <article><span>01</span><h3>Fast crew comms</h3><p>Tap-to-talk audio designed for quick, clear coordination.</p></article>
+              <article><span>02</span><h3>Live direction</h3><p>Share a director window and keep every phone on the same view.</p></article>
+              <article><span>03</span><h3>Quick decisions</h3><p>Reply to battery, backup, and camera requests in one place.</p></article>
+            </div>
+          </section>
+
+          <section class="landing-contact" id="contact">
+            <div><p class="eyebrow">CONTACT US</p><h2>Ready for a smoother show?</h2><p>Start a room now or send the CrewLink team a message.</p></div>
+            <div class="landing-contact-actions"><button class="landing-primary" data-landing-action="create" type="button">Start your room <span>→</span></button><a href="mailto:hello@crewlink.app">hello@crewlink.app</a></div>
+          </section>
+
+          <footer class="landing-footer"><span>© 2026 CrewLink</span><span>Live crews, linked.</span><p class="connection-status" id="connectionStatus"><i></i> Connecting to CrewLink</p></footer>
+        </div>
+
+        <div class="legacy-welcome hidden">
         <div class="brand-lockup">
           <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
           <p class="eyebrow">EVENT CREW COMMS</p>
@@ -31,7 +77,8 @@
           <button class="primary-button" id="showCreate" type="button">Create an event <span>→</span></button>
           <button class="secondary-button" id="showJoin" type="button">Join an event</button>
         </div>
-        <p class="connection-status" id="connectionStatus"><i></i> Connecting to CrewLink</p>
+        <p class="connection-status" data-legacy-status><i></i> Connecting to CrewLink</p>
+        </div>
       </section>
 
       <section class="screen screen--form hidden" id="createScreen" aria-hidden="true">
@@ -106,7 +153,10 @@
           </div>
           <p>Choose a tab, app window, or screen. Crew phones will see it live.</p>
           <button class="screen-share-button" id="toggleScreenShare" type="button">Start window capture</button>
-          <div class="screen-preview hidden" id="screenPreview"><video id="directorScreenVideo" autoplay muted playsinline></video></div>
+          <div class="screen-preview hidden" id="screenPreview">
+            <div class="screen-preview-tools"><span>Drag the corner to resize</span><button id="toggleScreenFloat" type="button" aria-pressed="false">Float view</button></div>
+            <video id="directorScreenVideo" autoplay muted playsinline></video>
+          </div>
         </section>
 
         <section class="director-camera-status" id="directorCameraStatus" aria-live="polite" data-room-content>

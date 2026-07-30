@@ -60,6 +60,7 @@ const directorScreenShare = document.querySelector("#directorScreenShare");
 const directorScreenStatus = document.querySelector("#directorScreenStatus");
 const toggleScreenShare = document.querySelector("#toggleScreenShare");
 const screenPreview = document.querySelector("#screenPreview");
+const toggleScreenFloat = document.querySelector("#toggleScreenFloat");
 const directorScreenVideo = document.querySelector("#directorScreenVideo");
 const crewLiveView = document.querySelector("#crewLiveView");
 const crewScreenStatus = document.querySelector("#crewScreenStatus");
@@ -106,6 +107,7 @@ let localStream = null;
 let localScreenStream = null;
 let remoteScreenStream = null;
 let remoteScreenPeerId = "";
+let isScreenPreviewFloating = false;
 let rtcConfiguration = DEFAULT_RTC_CONFIGURATION;
 let audioContext = null;
 let microphoneSource = null;
@@ -123,6 +125,8 @@ function showScreen(name) {
     element.classList.toggle("hidden", !active);
     element.setAttribute("aria-hidden", String(!active));
   });
+  appShell.classList.toggle("is-welcome-view", name === "welcome");
+  appShell.classList.toggle("is-form-view", name === "create" || name === "join");
 }
 
 function setTheme(theme) {
@@ -147,7 +151,8 @@ function restoreTheme() {
 
 function renderBottomNav() {
   const inRoom = Boolean(state.roomId && state.role);
-  bottomNav.classList.toggle("hidden", !inRoom);
+  const desktopDashboard = state.role === "Director" && window.matchMedia("(min-width: 760px)").matches;
+  bottomNav.classList.toggle("hidden", !inRoom || desktopDashboard);
   roomTabButtons.forEach((button) => {
     const isActive = button.dataset.roomTab === state.activeTab;
     button.classList.toggle("is-active", isActive);
@@ -291,6 +296,12 @@ function renderScreenShare() {
   toggleScreenShare.textContent = isSharing ? "Stop window capture" : "Start window capture";
   toggleScreenShare.classList.toggle("is-sharing", isSharing);
   screenPreview.classList.toggle("hidden", !isSharing);
+  if (!isSharing) {
+    isScreenPreviewFloating = false;
+  }
+  screenPreview.classList.toggle("is-floating", isScreenPreviewFloating);
+  toggleScreenFloat.setAttribute("aria-pressed", String(isScreenPreviewFloating));
+  toggleScreenFloat.textContent = isScreenPreviewFloating ? "Dock view" : "Float view";
   if (directorScreenVideo.srcObject !== localScreenStream) {
     directorScreenVideo.srcObject = localScreenStream;
   }
@@ -1046,6 +1057,9 @@ async function enterRoom(event, roomDetails) {
 
 document.querySelector("#showCreate").addEventListener("click", () => showScreen("create"));
 document.querySelector("#showJoin").addEventListener("click", () => showScreen("join"));
+document.querySelectorAll("[data-landing-action]").forEach((button) => {
+  button.addEventListener("click", () => showScreen(button.dataset.landingAction));
+});
 document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => showScreen("welcome")));
 
 document.querySelectorAll(".room-input").forEach((input) => {
@@ -1135,6 +1149,10 @@ toggleScreenShare.addEventListener("click", () => {
     startScreenShare();
   }
 });
+toggleScreenFloat.addEventListener("click", () => {
+  isScreenPreviewFloating = !isScreenPreviewFloating;
+  renderScreenShare();
+});
 crewRequestButtons.forEach((button) => {
   button.addEventListener("click", () => sendCrewRequest(button.dataset.crewRequest));
 });
@@ -1172,6 +1190,7 @@ window.addEventListener("beforeunload", () => {
   closeAllPeerConnections();
   releaseMicrophone();
 });
+window.addEventListener("resize", renderBottomNav);
 
 socket.on("connect", () => {
   connectionStatus.textContent = "Connected to CrewLink";
