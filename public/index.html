@@ -118,11 +118,14 @@
           <p class="talk-instruction" id="talkInstruction">Tap to talk to everyone</p>
           <button class="talk-button" id="talkButton" type="button" disabled aria-label="Tap to start or stop talking">
             <span class="talk-rings" aria-hidden="true"></span>
+            <span class="voice-meter" id="voiceMeter" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </span>
             <span class="mic-icon" aria-hidden="true"></span>
             <strong>TAP TO TALK</strong>
             <span class="talk-state" id="talkState">READY</span>
           </button>
-          <p class="audio-note" id="audioNote">Your microphone stays muted until you hold the button.</p>
+          <p class="audio-note" id="audioNote">Your microphone stays muted until you tap the button.</p>
         </section>
 
         <section class="chat-panel hidden" id="chatPanel" aria-labelledby="chatTitle">

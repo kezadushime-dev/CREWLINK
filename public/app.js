@@ -1,6 +1,6 @@
 const socket = io();
 
-const RTC_CONFIGURATION = {
+const DEFAULT_RTC_CONFIGURATION = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" }
@@ -29,7 +29,8 @@ const state = {
   crewJoinUrl: "",
   messages: [],
   activeTab: "home",
-  unreadMessages: 0
+  unreadMessages: 0,
+  relayConfigured: false
 };
 
 const connectionStatus = document.querySelector("#connectionStatus");
@@ -41,6 +42,8 @@ const talkButton = document.querySelector("#talkButton");
 const talkInstruction = document.querySelector("#talkInstruction");
 const talkState = document.querySelector("#talkState");
 const audioNote = document.querySelector("#audioNote");
+const voiceMeter = document.querySelector("#voiceMeter");
+const voiceMeterBars = voiceMeter.querySelectorAll("span");
 const directorCameraStatus = document.querySelector("#directorCameraStatus");
 const directorCameraLabel = document.querySelector("#directorCameraLabel");
 const directorCameraToggle = document.querySelector("#directorCameraToggle");
@@ -64,9 +67,16 @@ const peerConnections = new Map();
 const remoteAudioElements = new Map();
 const pendingCandidates = new Map();
 let localStream = null;
+let rtcConfiguration = DEFAULT_RTC_CONFIGURATION;
+let audioContext = null;
+let microphoneSource = null;
+let microphoneAnalyser = null;
+let voiceMeterData = null;
+let voiceMeterFrame = null;
 let toastTimer;
 let requestedToTalk = false;
 let isTalking = false;
+let audioLinkError = "";
 
 function showScreen(name) {
   Object.entries(screens).forEach(([screenName, element]) => {
@@ -148,13 +158,95 @@ function setLocalAudioEnabled(enabled) {
   });
 }
 
+function connectedPeerCount() {
+  return [...peerConnections.values()].filter((connection) => connection.connectionState === "connected").length;
+}
+
+function roomPeerCount() {
+  return state.users.filter((user) => user.id !== socket.id).length;
+}
+
+function resetVoiceMeter() {
+  voiceMeter.classList.remove("is-speaking");
+  voiceMeterBars.forEach((bar) => bar.style.setProperty("--wave-level", ".16"));
+}
+
+function updateVoiceMeter() {
+  if (!microphoneAnalyser || !voiceMeterData) {
+    resetVoiceMeter();
+    return;
+  }
+
+  microphoneAnalyser.getByteFrequencyData(voiceMeterData);
+  let total = 0;
+  voiceMeterBars.forEach((bar, index) => {
+    const dataIndex = Math.min(voiceMeterData.length - 1, 1 + index * 3);
+    const level = isTalking ? voiceMeterData[dataIndex] / 255 : .16;
+    total += level;
+    bar.style.setProperty("--wave-level", String(Math.max(.13, level)));
+  });
+
+  voiceMeter.classList.toggle("is-speaking", isTalking && total / voiceMeterBars.length > .06);
+  voiceMeterFrame = window.requestAnimationFrame(updateVoiceMeter);
+}
+
+function setUpVoiceMeter() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor || !localStream || microphoneAnalyser) {
+    return;
+  }
+
+  try {
+    audioContext = new AudioContextConstructor();
+    microphoneSource = audioContext.createMediaStreamSource(localStream);
+    microphoneAnalyser = audioContext.createAnalyser();
+    microphoneAnalyser.fftSize = 64;
+    microphoneAnalyser.smoothingTimeConstant = .72;
+    voiceMeterData = new Uint8Array(microphoneAnalyser.frequencyBinCount);
+    microphoneSource.connect(microphoneAnalyser);
+    updateVoiceMeter();
+  } catch (error) {
+    resetVoiceMeter();
+  }
+}
+
+async function resumeAudioPlayback() {
+  if (audioContext?.state === "suspended") {
+    try {
+      await audioContext.resume();
+    } catch (error) {}
+  }
+
+  await Promise.all([...remoteAudioElements.values()].map((audio) => audio.play().catch(() => undefined)));
+}
+
+async function loadRtcConfiguration() {
+  try {
+    const response = await fetch("/api/webrtc-config", { cache: "no-store" });
+    const configuration = await response.json();
+    if (response.ok && Array.isArray(configuration.iceServers) && configuration.iceServers.length > 0) {
+      rtcConfiguration = { iceServers: configuration.iceServers };
+      state.relayConfigured = Boolean(configuration.relayConfigured);
+    }
+  } catch (error) {
+    rtcConfiguration = DEFAULT_RTC_CONFIGURATION;
+    state.relayConfigured = false;
+  }
+}
+
 function updateTalkButton() {
   const speaker = state.speaker;
   const someoneElseIsTalking = speaker && speaker.id !== socket.id;
-  talkButton.disabled = !state.microphoneReady || Boolean(someoneElseIsTalking);
+  const peerCount = roomPeerCount();
+  const audioLinkPending = peerCount > 0 && connectedPeerCount() < peerCount;
+  talkButton.disabled = !state.microphoneReady || Boolean(someoneElseIsTalking) || audioLinkPending;
   let status = "READY";
 
-  if (isTalking) {
+  if (audioLinkError && peerCount > 0) {
+    status = "LINK ERROR";
+    talkInstruction.textContent = "Audio link could not connect";
+    audioNote.textContent = audioLinkError;
+  } else if (isTalking) {
     status = "ON AIR";
     talkInstruction.textContent = "Your voice is live";
   } else if (!state.microphoneReady) {
@@ -163,6 +255,12 @@ function updateTalkButton() {
   } else if (someoneElseIsTalking) {
     status = "BUSY";
     talkInstruction.textContent = `${speaker.name} is speaking`;
+  } else if (audioLinkPending) {
+    status = "LINKING";
+    talkInstruction.textContent = "Connecting audio to crew…";
+    audioNote.textContent = state.relayConfigured
+      ? "Securing your audio link to the crew."
+      : "Connecting directly. A TURN relay is needed when mobile networks block direct audio.";
   } else if (requestedToTalk && !isTalking) {
     status = "CONNECTING";
     talkInstruction.textContent = "Requesting channel…";
@@ -199,6 +297,7 @@ function renderUsers() {
     member.append(avatar, details, role);
     return member;
   }));
+  updateTalkButton();
 }
 
 function chatTime(timestamp) {
@@ -362,7 +461,8 @@ async function prepareMicrophone() {
     });
     setLocalAudioEnabled(false);
     state.microphoneReady = true;
-    audioNote.textContent = "Microphone ready. Your audio sends only while you hold the button.";
+    setUpVoiceMeter();
+    audioNote.textContent = "Microphone ready. Tap TALK to start and stop your voice.";
     updateTalkButton();
     return true;
   } catch (error) {
@@ -379,6 +479,8 @@ function getRemoteAudioElement(peerId) {
     audio = document.createElement("audio");
     audio.autoplay = true;
     audio.playsInline = true;
+    audio.muted = false;
+    audio.volume = 1;
     audio.dataset.peerId = peerId;
     document.body.append(audio);
     remoteAudioElements.set(peerId, audio);
@@ -403,6 +505,8 @@ function closePeerConnection(peerId) {
     audio.remove();
     remoteAudioElements.delete(peerId);
   }
+
+  updateTalkButton();
 }
 
 function closeAllPeerConnections() {
@@ -415,7 +519,7 @@ function createPeerConnection(peerId) {
     return existingConnection;
   }
 
-  const connection = new RTCPeerConnection(RTC_CONFIGURATION);
+  const connection = new RTCPeerConnection(rtcConfiguration);
   peerConnections.set(peerId, connection);
 
   localStream?.getTracks().forEach((track) => {
@@ -438,15 +542,26 @@ function createPeerConnection(peerId) {
     if (audio.srcObject !== stream) {
       audio.srcObject = stream;
       audio.play().catch(() => {
-        audioNote.textContent = "Tap the talk button once if your browser has blocked incoming audio.";
+        audioNote.textContent = "Tap TALK once to allow incoming crew audio.";
       });
     }
   };
 
   connection.onconnectionstatechange = () => {
-    if (["failed", "closed"].includes(connection.connectionState)) {
+    if (connection.connectionState === "connected") {
+      audioLinkError = "";
+      audioNote.textContent = "Audio link ready. Tap TALK to start and stop your voice.";
+    }
+
+    if (connection.connectionState === "failed") {
+      audioLinkError = state.relayConfigured
+        ? "Audio relay failed. Check your network and rejoin the room."
+        : "This network blocked direct audio. Add TURN relay settings in Render, then rejoin the room.";
+      showToast("Audio link failed. Check the note below TALK.");
       closePeerConnection(peerId);
     }
+
+    updateTalkButton();
   };
 
   return connection;
@@ -505,11 +620,12 @@ async function handleIceCandidate({ senderId, candidate }) {
   await connection.addIceCandidate(candidate);
 }
 
-function startTalking() {
+async function startTalking() {
   if (!state.roomId || !state.microphoneReady || talkButton.disabled || requestedToTalk) {
     return;
   }
 
+  await resumeAudioPlayback();
   requestedToTalk = true;
   updateTalkButton();
   socket.emit("talk-started");
@@ -537,6 +653,18 @@ function toggleTalking() {
 }
 
 function releaseMicrophone() {
+  if (voiceMeterFrame) {
+    window.cancelAnimationFrame(voiceMeterFrame);
+    voiceMeterFrame = null;
+  }
+  microphoneSource?.disconnect();
+  microphoneAnalyser?.disconnect();
+  audioContext?.close().catch(() => undefined);
+  audioContext = null;
+  microphoneSource = null;
+  microphoneAnalyser = null;
+  voiceMeterData = null;
+  resetVoiceMeter();
   setLocalAudioEnabled(false);
   localStream?.getTracks().forEach((track) => track.stop());
   localStream = null;
@@ -548,7 +676,7 @@ async function enterRoom(event, roomDetails) {
   state.name = roomDetails.name();
   state.roomId = normaliseRoomId(roomDetails.roomId());
   state.eventName = roomDetails.eventName?.() || "";
-  await prepareMicrophone();
+  await Promise.all([prepareMicrophone(), loadRtcConfiguration()]);
   socket.emit(roomDetails.event, {
     roomId: state.roomId,
     name: state.name,
@@ -605,6 +733,9 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
 });
 
 talkButton.addEventListener("click", toggleTalking);
+document.addEventListener("pointerdown", () => {
+  resumeAudioPlayback();
+}, { passive: true });
 roomTabButtons.forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.roomTab));
 });
@@ -657,6 +788,7 @@ socket.on("room-joined", (data) => {
   state.directorCameraStatus = data.directorCameraStatus;
   state.activeTab = "home";
   state.unreadMessages = 0;
+  audioLinkError = "";
   document.querySelector("#roomId").textContent = `ROOM · ${data.roomId}`;
   document.querySelector("#eventTitle").textContent = data.eventName;
   showScreen("room");

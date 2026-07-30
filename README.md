@@ -23,9 +23,19 @@ CrewLink is a progressive web app (PWA). Open the deployed URL on Android Chrome
 
 ## Voice requirements
 
-CrewLink sends voice directly between people in the same room using WebRTC; the server only coordinates rooms and connection setup. Allow microphone access when your browser asks.
+CrewLink sends voice directly between people in the same room using WebRTC; the server only coordinates rooms and connection setup. Allow microphone access when your browser asks. The TALK button shows a live wave meter when your microphone detects voice and turns green only after the room grants you the channel.
 
 `localhost` is trusted for microphone use during development. When testing on phones through a local IP address, browsers typically require HTTPS before they allow microphone access. Packaging the project as an Android app or serving it with a local HTTPS certificate resolves that requirement.
+
+For reliable online phone-to-phone audio, configure a TURN relay in your hosting environment. Add the following settings in Render under the CrewLink service environment variables, then redeploy:
+
+```text
+TURN_URLS=turn:your-turn-server.example:3478?transport=udp,turn:your-turn-server.example:3478?transport=tcp
+TURN_USERNAME=your-turn-username
+TURN_CREDENTIAL=your-turn-password
+```
+
+Without a TURN relay, chat and room presence still work, but some mobile networks block the direct WebRTC path needed for voice.
 
 ## Roles, devices, and chat
 

@@ -43,6 +43,30 @@ app.get("/api/health", (request, response) => {
   response.status(200).json({ status: "ok" });
 });
 
+function turnUrls() {
+  return String(process.env.TURN_URLS || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
+}
+
+app.get("/api/webrtc-config", (request, response) => {
+  const urls = turnUrls();
+  const username = String(process.env.TURN_USERNAME || "").trim();
+  const credential = String(process.env.TURN_CREDENTIAL || "").trim();
+  const relayConfigured = urls.length > 0 && Boolean(username && credential);
+  const iceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ];
+
+  if (relayConfigured) {
+    iceServers.push({ urls, username, credential });
+  }
+
+  response.json({ iceServers, relayConfigured });
+});
+
 function normaliseRoomId(value) {
   return String(value || "")
     .trim()
