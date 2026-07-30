@@ -50,7 +50,9 @@ const directorCameraLabel = document.querySelector("#directorCameraLabel");
 const directorCameraToggle = document.querySelector("#directorCameraToggle");
 const directorCameraToggleLabel = document.querySelector("#directorCameraToggleLabel");
 const directorDashboardKicker = document.querySelector("#directorDashboardKicker");
-const directorSharePanel = document.querySelector("#directorSharePanel");
+const openInvite = document.querySelector("#openInvite");
+const inviteDialog = document.querySelector("#inviteDialog");
+const closeInvite = document.querySelector("#closeInvite");
 const shareRoomId = document.querySelector("#shareRoomId");
 const shareLink = document.querySelector("#shareLink");
 const copyInvite = document.querySelector("#copyInvite");
@@ -421,7 +423,10 @@ function renderRoleLayout() {
   appShell.classList.toggle("is-director-dashboard", isDirector);
   appShell.classList.toggle("is-crew-phone", isCrew);
   directorDashboardKicker.classList.toggle("hidden", !isDirector);
-  directorSharePanel.classList.toggle("hidden", !isDirector);
+  openInvite.classList.toggle("hidden", !isDirector);
+  if (!isDirector && inviteDialog.open) {
+    inviteDialog.close();
+  }
   shareRoomId.textContent = state.roomId || "ROOM";
   shareLink.textContent = crewJoinLink();
   renderBottomNav();
@@ -443,7 +448,7 @@ async function copyEventInvite() {
     await navigator.clipboard.writeText(invite);
     showToast("Event details copied. Send them to your crew.");
   } catch (error) {
-    showToast("Copy is unavailable here. Share the room ID and crew link shown above.");
+    showToast("Copy is unavailable here. Share the room ID and crew link shown in this popup.");
   }
 }
 
@@ -722,6 +727,9 @@ document.querySelector("#joinForm").addEventListener("submit", (event) => enterR
 }));
 
 document.querySelector("#leaveRoom").addEventListener("click", () => {
+  if (inviteDialog.open) {
+    inviteDialog.close();
+  }
   stopTalking();
   socket.disconnect();
   closeAllPeerConnections();
@@ -771,6 +779,17 @@ directorCameraToggle.addEventListener("click", () => {
   socket.emit("director-camera-status", {
     isOnCamera: !state.directorCameraStatus
   });
+});
+openInvite.addEventListener("click", () => {
+  if (state.role === "Director") {
+    inviteDialog.showModal();
+  }
+});
+closeInvite.addEventListener("click", () => inviteDialog.close());
+inviteDialog.addEventListener("click", (event) => {
+  if (event.target === inviteDialog) {
+    inviteDialog.close();
+  }
 });
 copyInvite.addEventListener("click", copyEventInvite);
 document.addEventListener("visibilitychange", () => {

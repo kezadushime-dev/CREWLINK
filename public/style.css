@@ -86,9 +86,13 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(71, 163, 255
 .room-input { font-family: "DM Mono", monospace; letter-spacing: .09em; text-transform: uppercase; }
 .field-hint { margin: -8px 0 2px; color: var(--muted); font-size: .75rem; }
 
-.room-header { display: flex; align-items: flex-start; justify-content: space-between; padding-top: 5px; }
+.room-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-top: 5px; }
 .room-header h2 { margin-bottom: 0; font-size: clamp(1.7rem, 8vw, 2.4rem); }
-.leave-button { padding: 7px 0 7px 14px; }
+.room-header-actions { display: flex; align-items: center; gap: 10px; }
+.leave-button { padding: 7px 0 7px 4px; }
+.header-share-button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid #3c6690; border-radius: 10px; background: rgba(46, 103, 151, .22); color: #d4ebff; font-size: .7rem; font-weight: 800; cursor: pointer; transition: background .18s ease, transform .18s ease, border-color .18s ease; }
+.header-share-button:hover { border-color: #66b8ff; background: rgba(61, 136, 202, .33); transform: translateY(-1px); }
+.header-share-button svg { width: 16px; height: 16px; fill: currentColor; }
 .dashboard-kicker { margin: 0 0 7px; color: #9ed0ff; font: .62rem "DM Mono", monospace; font-weight: 500; letter-spacing: .15em; }
 .speaker-panel { display: flex; align-items: center; gap: 13px; margin: 34px 0 26px; padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: rgba(16, 36, 61, .7); }
 .speaker-panel.speaking { border-color: var(--green); background: rgba(38, 125, 93, .15); }
@@ -102,11 +106,19 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(71, 163, 255
 .director-camera-status.is-on-camera .camera-status-dot { background: var(--green); box-shadow: 0 0 0 5px rgba(102, 221, 162, .14), 0 0 14px rgba(102, 221, 162, .58); }
 .director-camera-status p { margin: 0 0 2px; color: var(--muted); font: .62rem "DM Mono", monospace; font-weight: 500; letter-spacing: .1em; }
 .director-camera-status strong { font-size: .82rem; }
-.director-share-card { margin: 0 0 24px; padding: 19px; border: 1px solid #335474; border-radius: 16px; background: linear-gradient(135deg, rgba(20, 58, 94, .92), rgba(12, 34, 58, .86)); box-shadow: inset 0 1px rgba(171, 218, 255, .08); }
+.invite-dialog { position: relative; width: min(calc(100% - 32px), 420px); margin: auto; padding: 0; overflow: hidden; border: 1px solid #335474; border-radius: 18px; background: linear-gradient(135deg, #143a5e, #0c223a); color: var(--ink); box-shadow: 0 24px 70px rgba(0, 0, 0, .48); }
+.invite-dialog::backdrop { background: rgba(2, 11, 23, .72); backdrop-filter: blur(5px); }
+.invite-dialog > .share-card-heading { margin-top: 20px; margin-bottom: 17px; }
+.invite-dialog > .invite-dialog-copy, .invite-dialog > .share-details { margin-right: 20px; margin-left: 20px; }
+.invite-dialog > .copy-invite-button { width: calc(100% - 40px); margin-top: 12px; margin-bottom: 20px; }
 .share-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
 .share-card-heading .eyebrow { margin-bottom: 5px; color: #a8d5ff; }
 .share-card-heading h3 { margin: 0; font-size: 1.03rem; letter-spacing: -.03em; }
 .share-lockup { display: grid; width: 35px; height: 35px; place-items: center; border: 1px solid rgba(168, 213, 255, .22); border-radius: 10px; background: rgba(115, 187, 255, .11); color: #b8deff; font-size: 1.25rem; }
+.invite-dialog .share-lockup { display: none; }
+.dialog-close { position: absolute; top: 16px; right: 16px; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(168, 213, 255, .22); border-radius: 10px; background: rgba(115, 187, 255, .11); color: #d8edff; font-size: 1.45rem; line-height: 1; cursor: pointer; }
+.dialog-close:hover { background: rgba(115, 187, 255, .23); }
+.invite-dialog-copy { margin-top: -7px; margin-bottom: 16px; color: #9eb5cc; font-size: .76rem; line-height: 1.45; }
 .share-details { display: grid; grid-template-columns: minmax(92px, .65fr) minmax(0, 1.45fr); gap: 9px; }
 .share-details > div { min-width: 0; padding: 10px; border: 1px solid rgba(137, 189, 234, .16); border-radius: 10px; background: rgba(5, 20, 38, .37); }
 .share-details span { display: block; margin-bottom: 5px; color: #8fa9c5; font: .56rem "DM Mono", monospace; letter-spacing: .1em; }
@@ -189,7 +201,8 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(71, 163, 255
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 body[data-theme="light"] .form-card, body[data-theme="light"] .speaker-panel, body[data-theme="light"] .director-camera-status, body[data-theme="light"] .crew-member, body[data-theme="light"] .chat-panel { background: rgba(255, 255, 255, .8); }
-body[data-theme="light"] .director-share-card { background: linear-gradient(135deg, #e5f2ff, #f8fbff); }
+body[data-theme="light"] .invite-dialog { background: linear-gradient(135deg, #e5f2ff, #f8fbff); color: #123350; box-shadow: 0 24px 70px rgba(33, 75, 111, .32); }
+body[data-theme="light"] .invite-dialog-copy { color: #52718c; }
 body[data-theme="light"] input, body[data-theme="light"] .chat-compose textarea { border-color: #b7cadc; background: #f7fbff; }
 body[data-theme="light"] .speaker-icon, body[data-theme="light"] .section-heading span, body[data-theme="light"] .avatar { background: #d7eafb; color: #16466e; }
 body[data-theme="light"] .role-badge { background: #d9ecff; color: #155588; }
@@ -218,11 +231,10 @@ body[data-theme="light"] .volume-control { border-color: rgba(80, 128, 174, .24)
 
 @media (min-width: 760px) {
   .app-shell.is-director-dashboard { width: min(100%, 1160px); max-width: none; padding: 40px; }
-  .app-shell.is-director-dashboard .screen--room { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "header header" "speaker crew" "camera crew" "share crew" "talk crew"; align-content: start; column-gap: 28px; row-gap: 0; }
+  .app-shell.is-director-dashboard .screen--room { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "header header" "speaker crew" "camera crew" "talk crew"; align-content: start; column-gap: 28px; row-gap: 0; }
   .app-shell.is-director-dashboard .room-header { grid-area: header; padding: 0 0 26px; }
   .app-shell.is-director-dashboard .speaker-panel { grid-area: speaker; margin: 0 0 14px; }
   .app-shell.is-director-dashboard .director-camera-status { grid-area: camera; margin: 0 0 14px; }
-  .app-shell.is-director-dashboard .director-share-card { grid-area: share; margin: 0 0 18px; }
   .app-shell.is-director-dashboard .crew-section { grid-area: crew; min-height: 460px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: rgba(11, 30, 51, .7); }
   .app-shell.is-director-dashboard .crew-list { max-height: 500px; overflow-y: auto; padding-right: 2px; }
   .app-shell.is-director-dashboard .talk-section { grid-area: talk; display: grid; grid-template-columns: 1fr minmax(320px, 420px); grid-template-areas: "toggle button" "instruction button" "note button"; align-items: center; column-gap: 24px; margin: 0; padding: 18px 0 0; text-align: left; }

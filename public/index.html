@@ -65,7 +65,13 @@
             <p class="eyebrow" id="roomId">ROOM</p>
             <h2 id="eventTitle">Your event</h2>
           </div>
-          <button class="leave-button" id="leaveRoom" type="button">Leave</button>
+          <div class="room-header-actions">
+            <button class="header-share-button hidden" id="openInvite" type="button" aria-label="Invite crew" title="Invite crew">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16a3 3 0 1 0-2.82-4L9.9 9.25a3.03 3.03 0 0 0 0-2.5l5.28-2.76A3 3 0 1 0 14 1.77L8.7 4.54a3 3 0 1 0 0 5L14 12.3a3 3 0 1 0 1.17-1.22L9.9 8.33a3.03 3.03 0 0 0 0-2.5L15.18 3A3 3 0 0 0 18 5a2.99 2.99 0 0 0-2.82-2.01L9.9 5.75a3.03 3.03 0 0 0 0 2.5l5.28 2.76A3 3 0 0 0 18 10a3 3 0 1 0 0 6Z" /></svg>
+              <span>Invite crew</span>
+            </button>
+            <button class="leave-button" id="leaveRoom" type="button">Leave</button>
+          </div>
         </header>
 
         <section class="speaker-panel" id="speakerPanel" data-room-content>
@@ -84,14 +90,16 @@
           </div>
         </section>
 
-        <section class="director-share-card hidden" id="directorSharePanel" data-room-content>
+        <dialog class="invite-dialog" id="inviteDialog" aria-labelledby="inviteDialogTitle">
           <div class="share-card-heading">
             <div>
               <p class="eyebrow">CREW ACCESS</p>
-              <h3>Invite your crew</h3>
+              <h3 id="inviteDialogTitle">Invite your crew</h3>
             </div>
             <span class="share-lockup" aria-hidden="true">⌁</span>
           </div>
+          <button class="dialog-close" id="closeInvite" type="button" aria-label="Close invite popup">×</button>
+          <p class="invite-dialog-copy">Send these details to let your crew join from their phones.</p>
           <div class="share-details">
             <div>
               <span>ROOM ID</span>
@@ -103,7 +111,7 @@
             </div>
           </div>
           <button class="copy-invite-button" id="copyInvite" type="button">Copy event details</button>
-        </section>
+        </dialog>
 
         <section class="crew-section" data-room-content>
           <div class="section-heading"><h3>Crew online</h3><span id="crewCount">0</span></div>
