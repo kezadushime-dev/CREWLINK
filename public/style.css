@@ -133,33 +133,31 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(71, 163, 255
 .camera-toggle-icon { color: var(--red); font-size: .95rem; line-height: 1; }
 .director-camera-toggle[aria-pressed="true"] .camera-toggle-icon { color: var(--green); }
 .talk-instruction { margin-bottom: 13px; color: var(--muted); font-size: .76rem; }
-.talk-button { position: relative; display: flex; width: min(100%, 288px); aspect-ratio: 1; flex-direction: column; align-items: center; justify-content: center; gap: 11px; margin: auto; overflow: hidden; border: 1px solid rgba(255, 255, 255, .34); border-radius: 50%; background: radial-gradient(circle at 31% 23%, #ffb1ae 0, #ff6e72 18%, transparent 38%), linear-gradient(145deg, #fb5861, #c62b45 72%); color: white; cursor: pointer; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35), inset 0 -16px 30px rgba(104, 4, 30, .22), 0 18px 42px rgba(254, 94, 101, .29); touch-action: none; user-select: none; transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
-.talk-button::before, .talk-button::after { position: absolute; content: ""; border-radius: 50%; pointer-events: none; }
-.talk-button::before { inset: 13px; border: 1px solid rgba(255, 255, 255, .34); box-shadow: inset 0 0 25px rgba(255, 255, 255, .09); }
-.talk-button::after { width: 58%; aspect-ratio: 1; border: 1px solid rgba(255, 255, 255, .15); }
-.talk-button:not(:disabled):hover { transform: translateY(-2px) scale(1.015); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .4), inset 0 -16px 30px rgba(104, 4, 30, .2), 0 23px 44px rgba(254, 94, 101, .4); }
-.talk-button:not(:disabled):active { transform: translateY(1px) scale(.975); }
-.talk-button:focus-visible { outline: 3px solid var(--blue-light); outline-offset: 5px; }
-.talk-button:disabled { border-color: rgba(158, 177, 201, .23); background: radial-gradient(circle at 34% 25%, #49617e, #1b304b 66%); color: #92a4bc; cursor: not-allowed; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .08), 0 10px 24px rgba(0, 0, 0, .24); }
-.talk-button strong, .talk-state, .mic-icon, .voice-meter { z-index: 1; }
-.talk-button strong { font-size: .86rem; letter-spacing: .12em; line-height: 1; }
-.talk-state { padding: 5px 9px; border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px; background: rgba(8, 20, 38, .18); font: .6rem "DM Mono", monospace; font-weight: 500; letter-spacing: .12em; }
-.mic-icon { position: relative; width: 31px; height: 40px; border: 4px solid currentColor; border-radius: 17px 17px 14px 14px; }
-.mic-icon::before { position: absolute; bottom: -12px; left: 50%; width: 4px; height: 10px; border-radius: 2px; background: currentColor; content: ""; transform: translateX(-50%); }
-.mic-icon::after { position: absolute; bottom: -17px; left: 50%; width: 20px; height: 9px; border: 4px solid currentColor; border-top: 0; border-radius: 0 0 13px 13px; content: ""; transform: translateX(-50%); }
-.talk-rings { position: absolute; width: 76%; aspect-ratio: 1; border: 1px solid rgba(255, 255, 255, .26); border-radius: 50%; opacity: .78; transition: transform .25s ease, opacity .25s ease; }
-.voice-meter { position: absolute; top: 29px; left: 50%; display: flex; align-items: center; justify-content: center; gap: 3px; width: 86px; height: 30px; opacity: .46; transform: translateX(-50%); transition: opacity .18s ease; }
-.voice-meter span { --wave-level: .16; display: block; width: 5px; height: 100%; border-radius: 999px; background: rgba(255, 255, 255, .72); transform: scaleY(var(--wave-level)); transform-origin: center; transition: transform .07s linear, background .18s ease; }
+.talk-controls { display: grid; grid-template-columns: minmax(0, 1fr) 118px; width: min(calc(100vw - 32px), 420px); min-height: 66px; margin: 0 auto; overflow: hidden; border: 1px solid rgba(140, 182, 222, .3); border-radius: 18px; background: rgba(8, 24, 44, .86); box-shadow: 0 12px 34px rgba(0, 0, 0, .3); backdrop-filter: blur(18px); }
+.talk-button { display: flex; min-width: 0; min-height: 64px; align-items: center; justify-content: flex-start; gap: 10px; padding: 10px 14px; border: 0; background: linear-gradient(135deg, #f65c68, #ca2d48); color: white; cursor: pointer; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .28), inset 0 -12px 22px rgba(104, 4, 30, .2); touch-action: manipulation; user-select: none; transition: filter .18s ease, transform .18s ease, background .18s ease; }
+.talk-button:not(:disabled):hover { filter: brightness(1.08); }
+.talk-button:not(:disabled):active { transform: scale(.985); }
+.talk-button:focus-visible { outline: 3px solid var(--blue-light); outline-offset: -4px; }
+.talk-button:disabled { background: linear-gradient(135deg, #38526e, #1b304b); color: #aab9cb; cursor: not-allowed; }
+.talk-copy { display: grid; min-width: 0; justify-items: start; gap: 5px; text-align: left; }
+.talk-button strong { font-size: .76rem; letter-spacing: .1em; line-height: 1; white-space: nowrap; }
+.talk-state { padding: 3px 7px; border: 1px solid rgba(255, 255, 255, .3); border-radius: 999px; background: rgba(8, 20, 38, .18); font: .52rem "DM Mono", monospace; letter-spacing: .1em; }
+.mic-icon { position: relative; flex: 0 0 auto; width: 19px; height: 25px; margin-left: 2px; border: 3px solid currentColor; border-radius: 12px 12px 9px 9px; }
+.mic-icon::before { position: absolute; bottom: -8px; left: 50%; width: 3px; height: 7px; border-radius: 2px; background: currentColor; content: ""; transform: translateX(-50%); }
+.mic-icon::after { position: absolute; bottom: -12px; left: 50%; width: 14px; height: 6px; border: 3px solid currentColor; border-top: 0; border-radius: 0 0 9px 9px; content: ""; transform: translateX(-50%); }
+.voice-meter { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 2px; width: 42px; height: 24px; opacity: .52; transition: opacity .18s ease; }
+.voice-meter span { --wave-level: .16; display: block; width: 3px; height: 100%; border-radius: 999px; background: rgba(255, 255, 255, .8); transform: scaleY(var(--wave-level)); transform-origin: center; transition: transform .07s linear, background .18s ease; }
 .voice-meter span:nth-child(1), .voice-meter span:nth-child(7) { height: 38%; }
 .voice-meter span:nth-child(2), .voice-meter span:nth-child(6) { height: 62%; }
 .voice-meter span:nth-child(3), .voice-meter span:nth-child(5) { height: 84%; }
 .voice-meter span:nth-child(4) { height: 100%; }
 .voice-meter.is-speaking { opacity: 1; }
-.talk-button.is-talking { background: radial-gradient(circle at 31% 23%, #bcffe0 0, #56d99b 19%, transparent 39%), linear-gradient(145deg, #35c980, #167651 74%); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .38), inset 0 -16px 30px rgba(3, 75, 46, .25), 0 0 0 10px rgba(102, 221, 162, .13), 0 22px 50px rgba(57, 211, 139, .34); }
-.talk-button.is-talking .talk-rings { border-color: rgba(212, 255, 234, .68); animation: talk-pulse 1.15s ease-out infinite; }
+.volume-control { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; padding: 0 10px; border-left: 1px solid rgba(140, 182, 222, .25); background: rgba(14, 40, 68, .9); color: #cfe3fb; cursor: pointer; }
+.volume-icon { font: .52rem "DM Mono", monospace; font-weight: 700; letter-spacing: .08em; }
+.volume-control input { width: 100%; accent-color: var(--blue-light); cursor: pointer; }
+.talk-button.is-talking { background: linear-gradient(135deg, #35c980, #167651); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .38), inset 0 -12px 22px rgba(3, 75, 46, .25); }
 .talk-button.is-talking .talk-state { border-color: rgba(220, 255, 237, .55); background: rgba(1, 68, 40, .25); }
 .talk-button.is-talking .voice-meter span { background: #e4ffef; }
-@keyframes talk-pulse { 0% { transform: scale(.92); opacity: .92; } 75%, 100% { transform: scale(1.16); opacity: 0; } }
 .audio-note { margin: 12px auto 0; max-width: 330px; color: #637a98; font-size: .66rem; line-height: 1.45; }
 .toast { position: fixed; right: 20px; bottom: 22px; left: 20px; z-index: 2; max-width: 500px; margin: auto; padding: 13px 15px; border: 1px solid #d9696d; border-radius: 11px; background: #54202a; color: #ffe8e9; font-size: .82rem; box-shadow: 0 12px 25px rgba(0, 0, 0, .25); }
 
@@ -202,6 +200,8 @@ body[data-theme="light"] .bottom-nav { border-color: rgba(80, 128, 174, .28); ba
 body[data-theme="light"] .bottom-nav-button { color: #54708a; }
 body[data-theme="light"] .bottom-nav-button.is-active { background: #ddebfa; color: #135588; }
 body[data-theme="light"] .chat-badge { border-color: #f5faff; }
+body[data-theme="light"] .talk-controls { border-color: rgba(80, 128, 174, .28); background: rgba(249, 252, 255, .9); box-shadow: 0 12px 34px rgba(33, 75, 111, .18); }
+body[data-theme="light"] .volume-control { border-color: rgba(80, 128, 174, .24); background: rgba(233, 244, 255, .9); color: #215476; }
 
 @media (min-width: 600px) {
   .app-shell { min-height: 100vh; padding-right: 32px; padding-left: 32px; }
@@ -213,7 +213,7 @@ body[data-theme="light"] .chat-badge { border-color: #f5faff; }
   .app-shell.is-crew-phone .room-header { padding-top: 0; }
   .app-shell.is-crew-phone .crew-list { max-height: 30dvh; overflow-y: auto; padding-right: 2px; }
   .app-shell.is-crew-phone .talk-section { position: sticky; bottom: calc(60px + env(safe-area-inset-bottom)); margin: 22px -18px -28px; padding: 20px 18px 28px; background: linear-gradient(to bottom, rgba(7, 20, 38, 0), var(--navy) 28%); }
-  .app-shell.is-crew-phone .talk-button { width: min(78vw, 288px); }
+  .app-shell.is-crew-phone .talk-controls { width: min(calc(100vw - 32px), 420px); }
 }
 
 @media (min-width: 760px) {
@@ -225,10 +225,10 @@ body[data-theme="light"] .chat-badge { border-color: #f5faff; }
   .app-shell.is-director-dashboard .director-share-card { grid-area: share; margin: 0 0 18px; }
   .app-shell.is-director-dashboard .crew-section { grid-area: crew; min-height: 460px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: rgba(11, 30, 51, .7); }
   .app-shell.is-director-dashboard .crew-list { max-height: 500px; overflow-y: auto; padding-right: 2px; }
-  .app-shell.is-director-dashboard .talk-section { grid-area: talk; display: grid; grid-template-columns: 1fr minmax(245px, 288px); grid-template-areas: "toggle button" "instruction button" "note button"; align-items: center; column-gap: 24px; margin: 0; padding: 18px 0 0; text-align: left; }
+  .app-shell.is-director-dashboard .talk-section { grid-area: talk; display: grid; grid-template-columns: 1fr minmax(320px, 420px); grid-template-areas: "toggle button" "instruction button" "note button"; align-items: center; column-gap: 24px; margin: 0; padding: 18px 0 0; text-align: left; }
   .app-shell.is-director-dashboard .director-camera-toggle { grid-area: toggle; justify-self: start; width: auto; min-width: 235px; margin: 0; padding: 0 18px; }
   .app-shell.is-director-dashboard .talk-instruction { grid-area: instruction; align-self: end; margin: 0 0 5px; }
-  .app-shell.is-director-dashboard .talk-button { grid-area: button; width: min(100%, 260px); justify-self: end; }
+  .app-shell.is-director-dashboard .talk-controls { grid-area: button; width: min(100%, 420px); justify-self: end; }
   .app-shell.is-director-dashboard .audio-note { grid-area: note; align-self: start; max-width: 270px; margin: 0; }
   .app-shell.is-director-dashboard .screen--room.showing-chat { display: flex; width: min(100%, 720px); margin: auto; }
   .app-shell.is-director-dashboard .screen--room.showing-chat .room-header { padding: 0 0 26px; }

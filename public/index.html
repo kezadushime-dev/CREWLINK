@@ -116,15 +116,20 @@
             <span id="directorCameraToggleLabel">Mark myself on camera</span>
           </button>
           <p class="talk-instruction" id="talkInstruction">Tap to talk to everyone</p>
-          <button class="talk-button" id="talkButton" type="button" disabled aria-label="Tap to start or stop talking">
-            <span class="talk-rings" aria-hidden="true"></span>
-            <span class="voice-meter" id="voiceMeter" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-            </span>
-            <span class="mic-icon" aria-hidden="true"></span>
-            <strong>TAP TO TALK</strong>
-            <span class="talk-state" id="talkState">READY</span>
-          </button>
+          <div class="talk-controls">
+            <button class="talk-button" id="talkButton" type="button" disabled aria-label="Tap to start or stop talking">
+              <span class="mic-icon" aria-hidden="true"></span>
+              <span class="voice-meter" id="voiceMeter" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              </span>
+              <span class="talk-copy"><strong>TAP TO TALK</strong><span class="talk-state" id="talkState">READY</span></span>
+            </button>
+            <label class="volume-control" for="volumeControl">
+              <span class="volume-icon" aria-hidden="true">VOL</span>
+              <span class="sr-only">Crew volume</span>
+              <input id="volumeControl" type="range" min="0" max="100" value="100" aria-label="Crew volume">
+            </label>
+          </div>
           <p class="audio-note" id="audioNote">Your microphone stays muted until you tap the button.</p>
         </section>
 

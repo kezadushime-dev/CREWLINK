@@ -42,6 +42,7 @@ const talkButton = document.querySelector("#talkButton");
 const talkInstruction = document.querySelector("#talkInstruction");
 const talkState = document.querySelector("#talkState");
 const audioNote = document.querySelector("#audioNote");
+const volumeControl = document.querySelector("#volumeControl");
 const voiceMeter = document.querySelector("#voiceMeter");
 const voiceMeterBars = voiceMeter.querySelectorAll("span");
 const directorCameraStatus = document.querySelector("#directorCameraStatus");
@@ -486,12 +487,19 @@ function getRemoteAudioElement(peerId) {
     audio.autoplay = true;
     audio.playsInline = true;
     audio.muted = false;
-    audio.volume = 1;
+    audio.volume = Number(volumeControl.value) / 100;
     audio.dataset.peerId = peerId;
     document.body.append(audio);
     remoteAudioElements.set(peerId, audio);
   }
   return audio;
+}
+
+function setCrewVolume() {
+  const volume = Number(volumeControl.value) / 100;
+  remoteAudioElements.forEach((audio) => {
+    audio.volume = volume;
+  });
 }
 
 function closePeerConnection(peerId) {
@@ -739,6 +747,7 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
 });
 
 talkButton.addEventListener("click", toggleTalking);
+volumeControl.addEventListener("input", setCrewVolume);
 document.addEventListener("pointerdown", () => {
   resumeAudioPlayback();
 }, { passive: true });
