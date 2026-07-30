@@ -239,13 +239,19 @@ function updateTalkButton() {
   const someoneElseIsTalking = speaker && speaker.id !== socket.id;
   const peerCount = roomPeerCount();
   const audioLinkPending = peerCount > 0 && connectedPeerCount() < peerCount;
-  talkButton.disabled = !state.microphoneReady || Boolean(someoneElseIsTalking) || audioLinkPending;
+  talkButton.disabled = !state.microphoneReady || Boolean(someoneElseIsTalking);
   let status = "READY";
 
   if (audioLinkError && peerCount > 0) {
     status = "LINK ERROR";
     talkInstruction.textContent = "Audio link could not connect";
     audioNote.textContent = audioLinkError;
+  } else if (isTalking && audioLinkPending) {
+    status = "LINKING";
+    talkInstruction.textContent = "Sending while audio connects";
+    audioNote.textContent = state.relayConfigured
+      ? "Your microphone is active while the crew audio link finishes connecting."
+      : "Your microphone is active. If nobody hears you, add TURN relay settings in Render.";
   } else if (isTalking) {
     status = "ON AIR";
     talkInstruction.textContent = "Your voice is live";
@@ -257,7 +263,7 @@ function updateTalkButton() {
     talkInstruction.textContent = `${speaker.name} is speaking`;
   } else if (audioLinkPending) {
     status = "LINKING";
-    talkInstruction.textContent = "Connecting audio to crew…";
+    talkInstruction.textContent = "Connecting audio to crew — tap TALK to test";
     audioNote.textContent = state.relayConfigured
       ? "Securing your audio link to the crew."
       : "Connecting directly. A TURN relay is needed when mobile networks block direct audio.";
