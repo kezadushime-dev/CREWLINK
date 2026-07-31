@@ -55,12 +55,15 @@ const performanceValue = document.querySelector("#performanceValue");
 const metricCrewOnline = document.querySelector("#metricCrewOnline");
 const metricAudioLinks = document.querySelector("#metricAudioLinks");
 const metricOnAir = document.querySelector("#metricOnAir");
+const metricLiveWindow = document.querySelector("#metricLiveWindow");
 const performanceDiagram = document.querySelector("#performanceDiagram");
 const directorScreenShare = document.querySelector("#directorScreenShare");
 const directorScreenStatus = document.querySelector("#directorScreenStatus");
 const toggleScreenShare = document.querySelector("#toggleScreenShare");
 const screenPreview = document.querySelector("#screenPreview");
 const toggleScreenFloat = document.querySelector("#toggleScreenFloat");
+const screenPreviewDrag = document.querySelector("#screenPreviewDrag");
+const screenPreviewResize = document.querySelector("#screenPreviewResize");
 const directorScreenVideo = document.querySelector("#directorScreenVideo");
 const crewLiveView = document.querySelector("#crewLiveView");
 const crewScreenStatus = document.querySelector("#crewScreenStatus");
@@ -108,6 +111,7 @@ let localScreenStream = null;
 let remoteScreenStream = null;
 let remoteScreenPeerId = "";
 let isScreenPreviewFloating = false;
+let screenPreviewPointerAction = null;
 let rtcConfiguration = DEFAULT_RTC_CONFIGURATION;
 let audioContext = null;
 let microphoneSource = null;
@@ -119,10 +123,34 @@ let requestedToTalk = false;
 let isTalking = false;
 let audioLinkError = "";
 
+function saveSession() {
+  if (!state.roomId || !state.role || !state.name) return;
+  try {
+    sessionStorage.setItem("crewlink-session", JSON.stringify({
+      roomId: state.roomId,
+      name: state.name,
+      role: state.role,
+      eventName: state.eventName
+    }));
+  } catch (error) {}
+}
+
+function clearSession() {
+  try { sessionStorage.removeItem("crewlink-session"); } catch (error) {}
+}
+
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem("crewlink-session");
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) { return null; }
+}
+
 function showScreen(name) {
   Object.entries(screens).forEach(([screenName, element]) => {
     const active = screenName === name;
     element.classList.toggle("hidden", !active);
+    element.classList.toggle("screen--active", active);
     element.setAttribute("aria-hidden", String(!active));
   });
   appShell.classList.toggle("is-welcome-view", name === "welcome");
@@ -265,6 +293,30 @@ function renderDirectorPerformance() {
   metricCrewOnline.textContent = String(crew.length);
   metricAudioLinks.textContent = `${linkedCrew.length}/${crew.length}`;
   metricOnAir.textContent = state.speaker ? state.speaker.name : "CLEAR";
+  metricLiveWindow.textContent = localScreenStream || state.directorScreenSharing ? "LIVE" : "READY";
+
+  // push a new data point and keep last 20
+  if (!renderDirectorPerformance._history) renderDirectorPerformance._history = [];
+  renderDirectorPerformance._history.push(linkPercentage);
+  if (renderDirectorPerformance._history.length > 20) renderDirectorPerformance._history.shift();
+  const history = renderDirectorPerformance._history;
+
+  // redraw SVG path from real history
+  const svgEl = directorLiveOverview.querySelector(".performance-chart svg");
+  const chartStrong = directorLiveOverview.querySelector(".performance-chart strong");
+  if (svgEl && history.length > 1) {
+    const W = 300, H = 78, pad = 6;
+    const pts = history.map((v, i) => [
+      Math.round((i / (history.length - 1)) * W),
+      Math.round(H - pad - ((v / 100) * (H - pad * 2)))
+    ]);
+    const line = pts.map((p, i) => (i === 0 ? `M${p[0]} ${p[1]}` : `L${p[0]} ${p[1]}`)).join(" ");
+    const fill = `${line} L${pts[pts.length-1][0]} ${H} L0 ${H} Z`;
+    svgEl.querySelector("path:first-of-type").setAttribute("d", fill);
+    svgEl.querySelector("path:last-of-type").setAttribute("d", line);
+    chartStrong.textContent = linkPercentage === 100 ? "Stable live connection" : linkPercentage > 50 ? "Partial crew linked" : "Low crew connection";
+  }
+
   performanceDiagram.replaceChildren();
 
   if (crew.length === 0) {
@@ -298,6 +350,7 @@ function renderScreenShare() {
   screenPreview.classList.toggle("hidden", !isSharing);
   if (!isSharing) {
     isScreenPreviewFloating = false;
+    resetScreenPreviewPlacement();
   }
   screenPreview.classList.toggle("is-floating", isScreenPreviewFloating);
   toggleScreenFloat.setAttribute("aria-pressed", String(isScreenPreviewFloating));
@@ -1086,6 +1139,11 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   if (inviteDialog.open) {
     inviteDialog.close();
   }
+  // Director leaving intentionally cancels the event
+  if (state.role === "Director" && state.roomId) {
+    socket.emit("cancel-event");
+  }
+  clearSession();
   stopScreenShare(false, false);
   stopTalking();
   socket.disconnect();
@@ -1195,6 +1253,22 @@ window.addEventListener("resize", renderBottomNav);
 socket.on("connect", () => {
   connectionStatus.textContent = "Connected to CrewLink";
   connectionStatus.classList.add("connected");
+
+  const session = loadSession();
+  if (session?.roomId && session?.name && session?.role) {
+    state.name = session.name;
+    state.eventName = session.eventName || "";
+    // Re-prepare mic and RTC config, then rejoin
+    Promise.all([prepareMicrophone(), loadRtcConfiguration()]).then(() => {
+      const rejoinEvent = session.role === "Director" ? "create-event" : "join-event";
+      socket.emit(rejoinEvent, {
+        roomId: session.roomId,
+        name: session.name,
+        eventName: session.eventName || "",
+        coverImage: ""
+      });
+    });
+  }
 });
 
 socket.on("disconnect", () => {
@@ -1224,6 +1298,52 @@ socket.on("room-joined", (data) => {
   renderDirectorCameraStatus();
   renderRoleLayout();
   setActiveTab("home");
+  saveSession();
+});
+
+socket.on("director-offline", () => {
+  if (state.role === "Director") return;
+  showToast("Director has disconnected. Waiting for them to return…");
+  connectionStatus.textContent = "Director offline — waiting";
+  connectionStatus.classList.remove("connected");
+});
+
+socket.on("director-returned", () => {
+  if (state.role === "Director") return;
+  showToast("Director is back online.");
+  connectionStatus.textContent = "Connected to CrewLink";
+  connectionStatus.classList.add("connected");
+});
+
+socket.on("event-ended", () => {
+  clearSession();
+  showToast("The event has been cancelled by the director.");
+  stopScreenShare(false, false);
+  stopTalking();
+  closeAllPeerConnections();
+  releaseMicrophone();
+  state.roomId = "";
+  state.users = [];
+  state.speaker = null;
+  state.role = "";
+  state.directorCameraStatus = false;
+  state.directorName = "Director";
+  state.crewJoinUrl = "";
+  state.messages = [];
+  state.coverImage = "";
+  state.crewRequests = [];
+  state.requestStatuses = {};
+  state.directorScreenSharing = false;
+  clearRemoteScreen();
+  state.activeTab = "home";
+  state.unreadMessages = 0;
+  screens.room.classList.remove("showing-chat");
+  chatPanel.classList.add("hidden");
+  renderChatMessages();
+  renderDirectorCameraStatus();
+  renderRoleLayout();
+  loadCrewJoinLink();
+  showScreen("welcome");
 });
 
 socket.on("room-error", showToast);

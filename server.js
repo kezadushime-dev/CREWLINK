@@ -158,7 +158,17 @@ function leaveCurrentRoom(socket) {
       io.to(roomId).emit("speaker-updated", null);
     }
 
-    if (room.users.size === 0) {
+    if (socket.data.role === "Director") {
+      room.directorOffline = true;
+      io.to(roomId).emit("director-offline");
+      // Clean up the room after 30 minutes if director never returns
+      room.cleanupTimer = setTimeout(() => {
+        io.to(roomId).emit("event-ended");
+        rooms.delete(roomId);
+      }, 30 * 60 * 1000);
+    }
+
+    if (room.users.size === 0 && !room.directorOffline) {
       rooms.delete(roomId);
     } else {
       broadcastUsers(roomId);
@@ -213,23 +223,36 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (rooms.has(roomId)) {
+    // Allow director to reclaim their own offline room
+    const existingRoom = rooms.get(roomId);
+    if (existingRoom && !existingRoom.directorOffline) {
       socket.emit("room-error", "That room ID is already in use. Choose another one.");
       return;
     }
 
     leaveCurrentRoom(socket);
-    rooms.set(roomId, {
-      eventName,
-      coverImage,
-      users: new Map(),
-      activeSpeaker: null,
-      directorCameraStatus: false,
-      directorScreenSharing: false,
-      messages: [],
-      crewRequests: new Map()
-    });
-    joinRoom(socket, roomId, name, "Director");
+    if (existingRoom?.directorOffline) {
+      // Director reclaiming their offline room — restore it
+      existingRoom.directorOffline = false;
+      clearTimeout(existingRoom.cleanupTimer);
+      delete existingRoom.cleanupTimer;
+      existingRoom.eventName = eventName;
+      if (coverImage) existingRoom.coverImage = coverImage;
+      joinRoom(socket, roomId, name, "Director");
+      io.to(roomId).emit("director-returned");
+    } else {
+      rooms.set(roomId, {
+        eventName,
+        coverImage,
+        users: new Map(),
+        activeSpeaker: null,
+        directorCameraStatus: false,
+        directorScreenSharing: false,
+        messages: [],
+        crewRequests: new Map()
+      });
+      joinRoom(socket, roomId, name, "Director");
+    }
   });
 
   socket.on("join-event", (payload = {}) => {
@@ -248,6 +271,20 @@ io.on("connection", (socket) => {
 
     leaveCurrentRoom(socket);
     joinRoom(socket, roomId, name, "Crew");
+    // Tell the rejoining crew member if director is currently offline
+    const room = rooms.get(roomId);
+    if (room?.directorOffline) {
+      socket.emit("director-offline");
+    }
+  });
+
+  socket.on("cancel-event", () => {
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room || socket.data.role !== "Director") return;
+    clearTimeout(room.cleanupTimer);
+    io.to(roomId).emit("event-ended");
+    rooms.delete(roomId);
   });
 
   socket.on("talk-started", () => {
