@@ -179,6 +179,9 @@ input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(71, 163, 255
 .header-share-button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid #3c6690; border-radius: 10px; background: rgba(46, 103, 151, .22); color: #d4ebff; font-size: .7rem; font-weight: 800; cursor: pointer; transition: background .18s ease, transform .18s ease, border-color .18s ease; }
 .header-share-button:hover { border-color: #66b8ff; background: rgba(61, 136, 202, .33); transform: translateY(-1px); }
 .header-share-button svg { width: 16px; height: 16px; fill: currentColor; }
+.cancel-event-button { display: inline-flex; min-height: 36px; align-items: center; gap: 5px; padding: 0 10px; border: 1px solid rgba(254, 94, 101, .65); border-radius: 10px; background: rgba(160, 40, 53, .2); color: #ffd1d4; font-size: .7rem; font-weight: 800; cursor: pointer; transition: background .18s ease, transform .18s ease, border-color .18s ease; }
+.cancel-event-button > span:first-child { font-size: 1.1rem; line-height: 1; }
+.cancel-event-button:hover { border-color: #ff8f95; background: rgba(190, 47, 63, .35); transform: translateY(-1px); }
 .dashboard-kicker { margin: 0 0 7px; color: #9ed0ff; font: .62rem "DM Mono", monospace; font-weight: 500; letter-spacing: .15em; }
 .event-cover { position: absolute; top: 0; left: 0; right: 0; z-index: 0; height: min(55vw, 380px); background-position: center; background-size: cover; pointer-events: none; }
 .event-cover::after { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7,20,38,.1) 0%, rgba(7,20,38,.45) 60%, var(--navy) 100%); content: ""; }
@@ -430,6 +433,12 @@ body[data-theme="light"] .volume-control { border-color: rgba(80, 128, 174, .24)
   .screen-preview.is-floating { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); width: min(88vw, 440px); }
   .performance-summary { grid-template-columns: 1fr; }
   .performance-ring { justify-self: start; }
+}
+
+@media (max-width: 430px) {
+  .room-header-actions { gap: 7px; }
+  .header-share-button, .cancel-event-button { width: 36px; justify-content: center; padding: 0; }
+  .header-share-button span, .cancel-event-label { display: none; }
 }
 
 @media (min-width: 760px) {

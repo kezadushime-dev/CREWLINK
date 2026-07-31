@@ -41,7 +41,7 @@ Without a TURN relay, chat and room presence still work, but some mobile network
 
 The person who creates an event is the Director. On a desktop-sized browser, the Director receives a dashboard with crew access details, live crew presence, camera status, and communication controls. People who choose **Join an event** enter as Crew and keep the compact, phone-first control room.
 
-After entering a room, use the bottom bar to switch between **Home** and **Chat**. The chat is shared instantly with everyone in the room, and the theme button switches between dark and light modes. The home screen uses a live camera-production background to keep the app focused on event work.
+After entering a room, use the bottom bar to switch between **Home** and **Chat**. The chat is shared instantly with everyone in the room, and the theme button switches between dark and light modes. Refreshing keeps you in the same room and on the same Home or Chat view. Directors can leave without ending the event, or use **Cancel event** to close it for everyone.
 
 ## Deploy on Render
 

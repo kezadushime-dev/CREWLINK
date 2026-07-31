@@ -82,6 +82,7 @@ const directorCameraToggle = document.querySelector("#directorCameraToggle");
 const directorCameraToggleLabel = document.querySelector("#directorCameraToggleLabel");
 const directorDashboardKicker = document.querySelector("#directorDashboardKicker");
 const openInvite = document.querySelector("#openInvite");
+const cancelEvent = document.querySelector("#cancelEvent");
 const inviteDialog = document.querySelector("#inviteDialog");
 const closeInvite = document.querySelector("#closeInvite");
 const shareRoomId = document.querySelector("#shareRoomId");
@@ -130,7 +131,8 @@ function saveSession() {
       roomId: state.roomId,
       name: state.name,
       role: state.role,
-      eventName: state.eventName
+      eventName: state.eventName,
+      activeTab: state.activeTab
     }));
   } catch (error) {}
 }
@@ -391,6 +393,7 @@ function setActiveTab(tab) {
     });
   }
   renderBottomNav();
+  saveSession();
 }
 
 function showToast(message) {
@@ -678,6 +681,7 @@ function renderRoleLayout() {
   appShell.classList.toggle("is-crew-phone", isCrew);
   directorDashboardKicker.classList.toggle("hidden", !isDirector);
   openInvite.classList.toggle("hidden", !isDirector);
+  cancelEvent.classList.toggle("hidden", !isDirector);
   if (!isDirector && inviteDialog.open) {
     inviteDialog.close();
   }
@@ -1139,10 +1143,6 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   if (inviteDialog.open) {
     inviteDialog.close();
   }
-  // Director leaving intentionally cancels the event
-  if (state.role === "Director" && state.roomId) {
-    socket.emit("cancel-event");
-  }
   clearSession();
   stopScreenShare(false, false);
   stopTalking();
@@ -1172,6 +1172,17 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   loadCrewJoinLink();
   showScreen("welcome");
   socket.connect();
+});
+
+cancelEvent.addEventListener("click", () => {
+  if (state.role !== "Director" || !state.roomId) {
+    return;
+  }
+
+  const eventLabel = state.eventName || "this event";
+  if (window.confirm(`Cancel ${eventLabel}? Everyone in the room will be sent back to the home page.`)) {
+    socket.emit("cancel-event");
+  }
 });
 
 talkButton.addEventListener("click", toggleTalking);
@@ -1258,6 +1269,7 @@ socket.on("connect", () => {
   if (session?.roomId && session?.name && session?.role) {
     state.name = session.name;
     state.eventName = session.eventName || "";
+    state.activeTab = ["home", "chat"].includes(session.activeTab) ? session.activeTab : "home";
     // Re-prepare mic and RTC config, then rejoin
     Promise.all([prepareMicrophone(), loadRtcConfiguration()]).then(() => {
       const rejoinEvent = session.role === "Director" ? "create-event" : "join-event";
@@ -1288,7 +1300,7 @@ socket.on("room-joined", (data) => {
   state.coverImage = data.coverImage || "";
   state.crewRequests = [];
   state.requestStatuses = {};
-  state.activeTab = "home";
+  state.activeTab = ["home", "chat"].includes(state.activeTab) ? state.activeTab : "home";
   state.unreadMessages = 0;
   audioLinkError = "";
   document.querySelector("#roomId").textContent = `ROOM · ${data.roomId}`;
@@ -1297,7 +1309,7 @@ socket.on("room-joined", (data) => {
   renderSpeaker();
   renderDirectorCameraStatus();
   renderRoleLayout();
-  setActiveTab("home");
+  setActiveTab(state.activeTab);
   saveSession();
 });
 
