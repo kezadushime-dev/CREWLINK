@@ -1,6 +1,7 @@
 const path = require("path");
 const http = require("http");
 const os = require("os");
+const { randomUUID } = require("crypto");
 const express = require("express");
 const { Server } = require("socket.io");
 
@@ -93,6 +94,11 @@ function normaliseCoverImage(value) {
   }
 
   return /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(image) ? image : "";
+}
+
+function normaliseDirectorToken(value) {
+  const token = typeof value === "string" ? value.trim() : "";
+  return /^[a-f0-9-]{36}$/i.test(token) ? token : "";
 }
 
 function usersIn(roomId) {
@@ -199,7 +205,8 @@ function joinRoom(socket, roomId, name, role) {
     role,
     directorCameraStatus: room.directorCameraStatus,
     directorScreenSharing: room.directorScreenSharing,
-    coverImage: room.coverImage
+    coverImage: room.coverImage,
+    directorToken: role === "Director" ? room.directorToken : ""
   });
   if (role === "Director") {
     socket.emit("crew-requests-updated", requestsIn(room));
@@ -217,25 +224,39 @@ io.on("connection", (socket) => {
     const name = normaliseName(payload.name);
     const eventName = normaliseName(payload.eventName) || "Untitled event";
     const coverImage = normaliseCoverImage(payload.coverImage);
+    const directorToken = normaliseDirectorToken(payload.directorToken);
 
     if (!roomId || !name) {
       socket.emit("room-error", "Enter your name and a room ID.");
       return;
     }
 
-    // Allow director to reclaim their own offline room
     const existingRoom = rooms.get(roomId);
-    if (existingRoom && !existingRoom.directorOffline) {
+    const matchingDirector = existingRoom && [...existingRoom.users.values()].some((user) => user.role === "Director" && user.name === name);
+    const canReclaimRoom = existingRoom && (
+      existingRoom.directorToken
+        ? directorToken === existingRoom.directorToken
+        : existingRoom.directorOffline || matchingDirector
+    );
+    if (existingRoom && !canReclaimRoom) {
       socket.emit("room-error", "That room ID is already in use. Choose another one.");
       return;
     }
 
     leaveCurrentRoom(socket);
-    if (existingRoom?.directorOffline) {
-      // Director reclaiming their offline room — restore it
+    if (existingRoom) {
+      if (!existingRoom.directorOffline) {
+        const currentDirectorId = [...existingRoom.users.entries()].find(([, user]) => user.role === "Director")?.[0];
+        const currentDirector = currentDirectorId ? io.sockets.sockets.get(currentDirectorId) : null;
+        if (currentDirector) {
+          leaveCurrentRoom(currentDirector);
+        }
+      }
+
       existingRoom.directorOffline = false;
       clearTimeout(existingRoom.cleanupTimer);
       delete existingRoom.cleanupTimer;
+      existingRoom.directorToken ||= directorToken || randomUUID();
       existingRoom.eventName = eventName;
       if (coverImage) existingRoom.coverImage = coverImage;
       joinRoom(socket, roomId, name, "Director");
@@ -249,7 +270,8 @@ io.on("connection", (socket) => {
         directorCameraStatus: false,
         directorScreenSharing: false,
         messages: [],
-        crewRequests: new Map()
+        crewRequests: new Map(),
+        directorToken: directorToken || randomUUID()
       });
       joinRoom(socket, roomId, name, "Director");
     }

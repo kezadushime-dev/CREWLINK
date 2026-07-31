@@ -40,7 +40,8 @@ const state = {
   coverImage: "",
   crewRequests: [],
   requestStatuses: {},
-  directorScreenSharing: false
+  directorScreenSharing: false,
+  directorToken: ""
 };
 
 const connectionStatus = document.querySelector("#connectionStatus");
@@ -132,7 +133,8 @@ function saveSession() {
       name: state.name,
       role: state.role,
       eventName: state.eventName,
-      activeTab: state.activeTab
+      activeTab: state.activeTab,
+      directorToken: state.role === "Director" ? state.directorToken : ""
     }));
   } catch (error) {}
 }
@@ -1108,7 +1110,8 @@ async function enterRoom(event, roomDetails) {
     roomId: state.roomId,
     name: state.name,
     eventName: state.eventName,
-    coverImage
+    coverImage,
+    directorToken: state.directorToken
   });
 }
 
@@ -1161,6 +1164,7 @@ document.querySelector("#leaveRoom").addEventListener("click", () => {
   state.crewRequests = [];
   state.requestStatuses = {};
   state.directorScreenSharing = false;
+  state.directorToken = "";
   clearRemoteScreen();
   state.activeTab = "home";
   state.unreadMessages = 0;
@@ -1270,6 +1274,7 @@ socket.on("connect", () => {
     state.name = session.name;
     state.eventName = session.eventName || "";
     state.activeTab = ["home", "chat"].includes(session.activeTab) ? session.activeTab : "home";
+    state.directorToken = session.directorToken || "";
     // Re-prepare mic and RTC config, then rejoin
     Promise.all([prepareMicrophone(), loadRtcConfiguration()]).then(() => {
       const rejoinEvent = session.role === "Director" ? "create-event" : "join-event";
@@ -1297,6 +1302,7 @@ socket.on("room-joined", (data) => {
   state.role = data.role;
   state.directorCameraStatus = data.directorCameraStatus;
   state.directorScreenSharing = Boolean(data.directorScreenSharing);
+  state.directorToken = data.directorToken || "";
   state.coverImage = data.coverImage || "";
   state.crewRequests = [];
   state.requestStatuses = {};
@@ -1346,6 +1352,7 @@ socket.on("event-ended", () => {
   state.crewRequests = [];
   state.requestStatuses = {};
   state.directorScreenSharing = false;
+  state.directorToken = "";
   clearRemoteScreen();
   state.activeTab = "home";
   state.unreadMessages = 0;
