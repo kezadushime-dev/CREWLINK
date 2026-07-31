@@ -234,9 +234,9 @@ io.on("connection", (socket) => {
     const existingRoom = rooms.get(roomId);
     const matchingDirector = existingRoom && [...existingRoom.users.values()].some((user) => user.role === "Director" && user.name === name);
     const canReclaimRoom = existingRoom && (
-      existingRoom.directorToken
-        ? directorToken === existingRoom.directorToken
-        : existingRoom.directorOffline || matchingDirector
+      (directorToken && existingRoom.directorToken && directorToken === existingRoom.directorToken)
+      || existingRoom.directorOffline
+      || matchingDirector
     );
     if (existingRoom && !canReclaimRoom) {
       socket.emit("room-error", "That room ID is already in use. Choose another one.");

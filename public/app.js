@@ -1282,7 +1282,8 @@ socket.on("connect", () => {
         roomId: session.roomId,
         name: session.name,
         eventName: session.eventName || "",
-        coverImage: ""
+        coverImage: "",
+        directorToken: state.directorToken
       });
     });
   }
